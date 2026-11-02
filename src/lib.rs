@@ -5,3 +5,4 @@
 //! et génère un MindMap PlantUML.
 
 pub mod error;
+pub mod loader;
