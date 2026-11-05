@@ -62,7 +62,6 @@ fn without_argument_prints_usage_and_exits_with_2() {
 #[test]
 fn common_parts_file_generates_mindmap() {
     let dir = TempDir::new("common_parts");
-    fs::create_dir_all(dir.path().join("graph")).unwrap();
 
     let output = run_in(dir.path(), &[&data_path("02_common_parts.json")]);
 
@@ -82,7 +81,6 @@ fn common_parts_file_generates_mindmap() {
 #[test]
 fn success_prints_statistics() {
     let dir = TempDir::new("statistics");
-    fs::create_dir_all(dir.path().join("graph")).unwrap();
 
     let output = run_in(dir.path(), &[&data_path("02_common_parts.json")]);
 
@@ -96,7 +94,6 @@ fn success_prints_statistics() {
 #[test]
 fn invalid_number_prints_warning_and_succeeds() {
     let dir = TempDir::new("invalid_number");
-    fs::create_dir_all(dir.path().join("graph")).unwrap();
 
     let output = run_in(dir.path(), &[&data_path("03_invalid_number.json")]);
 
@@ -120,7 +117,6 @@ fn invalid_number_prints_warning_and_succeeds() {
 #[test]
 fn malformed_json_exits_with_1() {
     let dir = TempDir::new("malformed");
-    fs::create_dir_all(dir.path().join("graph")).unwrap();
 
     let output = run_in(dir.path(), &[&data_path("04_malformed.json")]);
 
@@ -137,4 +133,20 @@ fn missing_file_exits_with_1() {
 
     assert_eq!(output.status.code(), Some(1));
     assert!(stderr(&output).contains("erreur"));
+}
+
+#[test]
+fn missing_graph_directory_is_created() {
+    let dir = TempDir::new("creates_graph");
+    assert!(!dir.path().join("graph").exists());
+
+    let output = run_in(dir.path(), &[&data_path("01_simple.json")]);
+
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "stderr : {}",
+        stderr(&output)
+    );
+    assert!(dir.path().join("graph").join("01_simple.puml").is_file());
 }

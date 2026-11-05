@@ -19,8 +19,10 @@ cargo run --release -- data/02_common_parts.json
 ```
 
 Le programme écrit le MindMap dans `graph/<nom du fichier sans extension>.puml`,
-ici `graph/02_common_parts.puml`, et affiche le chemin du fichier généré. Il
-doit être lancé depuis la racine du projet, où se trouve le dossier `graph/`.
+ici `graph/02_common_parts.puml`, et affiche le chemin du fichier généré. Le
+dossier `graph/` est relatif au répertoire courant : lancé depuis la racine du
+projet, le programme écrit dans le `graph/` du dépôt. S'il n'existe pas, il est
+créé.
 
 Il affiche aussi une ligne de statistiques qui montre le gain apporté par le
 partage des préfixes :

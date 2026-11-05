@@ -53,12 +53,17 @@ fn sorted_children<T>(node: &Node<T>) -> Vec<(char, &Node<T>)> {
 }
 
 /// Écrit `content` dans le fichier situé à `path`, en l'écrasant s'il existe.
+/// Les dossiers parents manquants sont créés.
 ///
 /// # Erreurs
 ///
-/// `AppError::Io` si le fichier ne peut pas être créé ou écrit, par exemple
-/// si le dossier parent n'existe pas.
+/// `AppError::Io` si un dossier parent ou le fichier ne peut pas être créé ou
+/// écrit, par exemple si un parent est un fichier ordinaire ou en cas de
+/// droits insuffisants.
 pub fn write_mindmap(content: &str, path: &Path) -> Result<(), AppError> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
     fs::write(path, content)?;
     Ok(())
 }
@@ -207,9 +212,26 @@ mod tests {
     }
 
     #[test]
-    fn write_mindmap_in_missing_directory_returns_io_error() {
-        let path = temp_path("dossier_inexistant").join("x.puml");
-        let result = write_mindmap("contenu", &path);
+    fn write_mindmap_creates_missing_directories() {
+        let dir = temp_path("dossier_inexistant");
+        let _ = fs::remove_dir_all(&dir);
+        let path = dir.join("sous_dossier").join("x.puml");
+
+        write_mindmap("contenu", &path).unwrap();
+
+        assert_eq!(fs::read_to_string(&path).unwrap(), "contenu");
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn write_mindmap_under_a_regular_file_returns_io_error() {
+        // Le « dossier » parent est un fichier : impossible de le créer.
+        let file = temp_path("pas_un_dossier.txt");
+        fs::write(&file, "fichier").unwrap();
+
+        let result = write_mindmap("contenu", &file.join("x.puml"));
+
         assert!(matches!(result, Err(AppError::Io(_))));
+        fs::remove_file(&file).unwrap();
     }
 }
