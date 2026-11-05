@@ -40,8 +40,8 @@ API publique du trie (`src/trie.rs`) :
 pub struct Trie<T> { root: Node<T> }
 
 pub struct Node<T> {
-    children: HashMap<char, Node<T>>,
-    value: Option<T>, // Some si un numéro se termine ici
+    children: Vec<(char, Node<T>)>, // au plus 10 enfants (chiffres 0-9)
+    value: Option<T>,               // Some si un numéro se termine ici
 }
 
 impl<T> Trie<T> {
@@ -73,9 +73,11 @@ pub enum AppError {
 }
 ```
 
-`T` est la donnée stockée en fin de numéro, par exemple le nom du contact. Une `HashMap` n'a pas d'ordre : l'export PlantUML trie les clés pour obtenir une sortie stable et testable.
+`T` est la donnée stockée en fin de numéro, par exemple le nom du contact.
 
-Question ouverte : vérifier ensemble le format exact des JSON d'exemple (`04_common_parts.json`…) pour savoir ce que contient `T`.
+Choix du `Vec<(char, Node<T>)>` plutôt que d'une `HashMap` : un nœud a au plus 10 enfants (les chiffres 0-9). Une recherche linéaire sur 10 éléments est aussi rapide qu'un hash, un `Vec` est plus compact en mémoire (pas de table de hachage par nœud), et l'ordre des enfants est déterministe (ordre d'insertion). L'export PlantUML trie quand même les clés : la sortie ne dépend pas de l'ordre dans lequel les numéros ont été insérés.
+
+Format des JSON (question tranchée) : un tableau d'objets `{ "name": string, "phone": string }`. `T` vaut donc `String`, le nom du contact.
 
 ## Partie A : le cœur du trie
 
@@ -83,14 +85,14 @@ Objectif : un trie générique, codé from scratch, qui insère des numéros et 
 
 Tâches, dans l'ordre TDD (un test qui échoue, puis le code minimal) :
 
-- [ ] Créer `Node<T>` et `Trie<T>`, puis implémenter `Default` pour `Node` et `Trie::new()`.
-- [ ] `insert` : valider le numéro (non vide, uniquement des chiffres `0-9`), sinon renvoyer `AppError::EmptyNumber` ou `AppError::InvalidDigit`.
-- [ ] `insert` : descendre caractère par caractère avec `node = node.children.entry(c).or_default();`, puis stocker `value` sur le dernier nœud.
-- [ ] Décider et documenter le comportement en cas de doublon : écraser la valeur ou renvoyer une erreur.
-- [ ] `contains(&self, number)` : parcours en lecture, `false` si un caractère manque ou si le dernier nœud n'a pas de valeur.
-- [ ] `root()`, `Node::children()` et `Node::value()` pour que la partie B parcoure l'arbre sans accéder aux champs privés.
-- [ ] Option bonus : `len()` (nombre de numéros) et `node_count()` (nombre de nœuds), utiles pour montrer le gain mémoire en soutenance.
-- [ ] Doc comments `///` sur chaque élément public.
+- [x] Créer `Node<T>` et `Trie<T>`, puis implémenter `Default` pour `Node` et `Trie::new()`.
+- [x] `insert` : valider le numéro (non vide, uniquement des chiffres `0-9`), sinon renvoyer `AppError::EmptyNumber` ou `AppError::InvalidDigit`.
+- [x] `insert` : descendre caractère par caractère avec `node = node.child_or_insert(c);` (cherche l'enfant dans le `Vec`, le crée s'il manque, renvoie `&mut Node<T>`), puis stocker `value` sur le dernier nœud.
+- [x] Décider et documenter le comportement en cas de doublon : la valeur est écrasée (documenté sur `insert`, testé).
+- [x] `contains(&self, number)` : parcours en lecture, `false` si un caractère manque ou si le dernier nœud n'a pas de valeur.
+- [x] `root()`, `Node::children()` et `Node::value()` pour que la partie B parcoure l'arbre sans accéder aux champs privés.
+- [ ] Option bonus : `len()` (nombre de numéros) et `node_count()` (nombre de nœuds), utiles pour montrer le gain mémoire en soutenance. `node_count()` est fait (racine exclue) ; `len()` reste à faire.
+- [x] Doc comments `///` sur chaque élément public.
 
 Tests unitaires attendus (`#[cfg(test)] mod tests` dans `trie.rs`) :
 
@@ -102,7 +104,7 @@ Tests unitaires attendus (`#[cfg(test)] mod tests` dans `trie.rs`) :
 
 C'est terminé quand tous les tests passent, que `cargo clippy` est propre et que la PR est relue par B.
 
-À savoir expliquer en soutenance : pourquoi `entry(...).or_default()` compile alors qu'on réassigne une référence `&mut` à chaque tour, le choix de la `HashMap` pour les enfants, la complexité de l'insertion (proportionnelle à la longueur du numéro) et le gain mémoire apporté par les préfixes partagés.
+À savoir expliquer en soutenance : pourquoi `node = node.child_or_insert(c)` compile alors qu'on réassigne une référence `&mut` à chaque tour (l'ancienne référence est « consommée » par l'appel et remplacée par celle, plus courte, vers l'enfant), le choix du `Vec<(char, Node<T>)>` pour les enfants (10 enfants au plus : recherche linéaire aussi rapide qu'un hash, moins de mémoire, ordre déterministe), la complexité de l'insertion (proportionnelle à la longueur du numéro) et le gain mémoire apporté par les préfixes partagés.
 
 ## Partie B : entrées/sorties
 
@@ -110,18 +112,18 @@ Objectif : lire le JSON, gérer les erreurs, générer le MindMap PlantUML et br
 
 Tâches :
 
-- [ ] `error.rs` : poser l'enum `AppError` validée ensemble. C'est la première PR, car A en a besoin.
-- [ ] `Cargo.toml` : `serde` (feature `derive`), `serde_json`, `thiserror`.
-- [ ] `loader.rs` : écrire les structs `#[derive(Deserialize)]` qui collent au format des JSON d'exemple.
-- [ ] `loader.rs` : `pub fn load_contacts(path: &Path) -> Result<Vec<Contact>, AppError>` avec `fs::read_to_string(path)?` puis `serde_json::from_str(&content)?`.
-- [ ] `loader.rs` : `pub fn build_trie(contacts: Vec<Contact>) -> Result<Trie<...>, AppError>` qui appelle `insert` pour chaque contact.
+- [x] `error.rs` : poser l'enum `AppError` validée ensemble. C'est la première PR, car A en a besoin.
+- [x] `Cargo.toml` : `serde` (feature `derive`), `serde_json`, `thiserror`.
+- [x] `loader.rs` : écrire les structs `#[derive(Deserialize)]` qui collent au format des JSON d'exemple.
+- [x] `loader.rs` : `pub fn load_contacts(path: &Path) -> Result<Vec<Contact>, AppError>` avec `fs::read_to_string(path)?` puis `serde_json::from_str(&content)?`.
+- [ ] `loader.rs` : `pub fn build_trie(contacts: Vec<Contact>) -> (Trie<String>, Vec<AppError>)` qui appelle `insert` pour chaque contact. Un numéro invalide (`EmptyNumber`, `InvalidDigit`) n'arrête pas la construction : le contact est ignoré et l'erreur est ajoutée à la liste renvoyée. La lib n'affiche rien. Pas de `Result` ici : les seules erreurs bloquantes (fichier introuvable, JSON mal formé) sont déjà renvoyées par `load_contacts`.
 - [ ] `plantuml.rs` : `pub fn to_mindmap<T: Display>(trie: &Trie<T>) -> String`. On écrit `@startmindmap`, puis une ligne par nœud avec autant de `*` que la profondeur + 1, enfants triés par clé, et `@endmindmap`. Une fonction récursive `write_node(node, depth, &mut String)` suffit.
 - [ ] `plantuml.rs` : afficher la valeur sur les nœuds où un numéro se termine, par exemple `**** 7 : Alice`.
-- [ ] `plantuml.rs` : `pub fn write_mindmap(content: &str, path: &Path) -> Result<(), AppError>`.
-- [ ] `main.rs` minimal : prendre le chemin du JSON en argument (`std::env::args`), charger, construire, écrire dans `graph/<nom>.puml`, et afficher l'erreur proprement si quelque chose échoue.
+- [x] `plantuml.rs` : `pub fn write_mindmap(content: &str, path: &Path) -> Result<(), AppError>`.
+- [ ] `main.rs` minimal : prendre le chemin du JSON en argument (`std::env::args`), charger, construire, écrire dans `graph/<nom>.puml`. Afficher un avertissement par numéro rejeté renvoyé par `build_trie` (le programme continue), et afficher l'erreur proprement puis s'arrêter si la lecture du fichier ou du JSON échoue.
 - [ ] Vérifier chaque `.puml` généré à la main dans le serveur PlantUML (Docker, `localhost:8080`).
 
-Exemple de sortie attendue pour `0612` et `0634` :
+Exemple de sortie attendue pour `0612` (Alice) et `0634` (Bob) :
 
 ```
 @startmindmap
@@ -129,9 +131,9 @@ Exemple de sortie attendue pour `0612` et `0634` :
 ** 0
 *** 6
 **** 1
-***** 2
+***** 2 : Alice
 **** 3
-***** 4
+***** 4 : Bob
 @endmindmap
 ```
 
@@ -139,6 +141,7 @@ Tests unitaires attendus :
 
 - `load_contacts` sur un JSON valide renvoie le bon nombre d'éléments.
 - JSON mal formé et fichier inexistant renvoient `AppError::Json` et `AppError::Io`.
+- `build_trie` avec un numéro valide et un numéro invalide : le trie contient le valide, la liste d'erreurs contient exactement un `AppError::InvalidDigit`.
 - `to_mindmap` sur un trie de deux numéros produit exactement la sortie ci-dessus. Tant que A n'a pas fini, on peut tester sur un trie construit à la main.
 - Le trie vide produit un mindmap valide avec la racine seule.
 
@@ -150,9 +153,9 @@ C'est terminé quand `cargo run --release -- data/xxx.json` génère un `.puml` 
 
 Tâches à faire à deux :
 
-- [ ] Valider l'API et `AppError` avant de commencer à coder.
-- [ ] Jeux de données dans `data/` : un cas simple, des préfixes communs, un numéro invalide et un fichier volumineux.
-- [ ] README : description, prérequis, lancement (`cargo run --release -- data/xxx.json`), tests (`cargo test`) et visualisation PlantUML.
+- [x] Valider l'API et `AppError` avant de commencer à coder.
+- [x] Jeux de données dans `data/` : un cas simple, des préfixes communs, un numéro invalide et un fichier volumineux (`01` à `06`, dont un JSON mal formé et un tableau vide).
+- [x] README : description, prérequis, lancement (`cargo run --release -- data/xxx.json`), tests (`cargo test`) et visualisation PlantUML.
 - [ ] Relire le code de l'autre : le prof peut interroger n'importe qui sur n'importe quelle partie.
 - [ ] Préparer les 5 minutes de présentation de la soutenance.
 
