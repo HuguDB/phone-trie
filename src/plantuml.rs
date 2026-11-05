@@ -1,12 +1,55 @@
 //! Export du trie au format PlantUML MindMap.
 //!
-//! La génération du texte (`to_mindmap`) dépend de `Trie` et sera ajoutée
-//! quand la partie A sera disponible. L'écriture sur disque est déjà là.
+//! `to_mindmap` génère le texte du MindMap, `write_mindmap` l'écrit sur disque.
 
+use std::fmt::Display;
 use std::fs;
 use std::path::Path;
 
 use crate::error::AppError;
+use crate::trie::{Node, Trie};
+
+/// Génère le MindMap PlantUML d'un trie.
+///
+/// La racine s'affiche `* Racine`, puis chaque nœud occupe une ligne avec
+/// autant de `*` que sa profondeur + 1, suivis de son chiffre. Un nœud où un
+/// numéro se termine affiche aussi sa valeur : `**** 7 : Alice`. Les enfants
+/// sont triés par chiffre, la sortie ne dépend donc pas de l'ordre d'insertion.
+pub fn to_mindmap<T: Display>(trie: &Trie<T>) -> String {
+    let mut out = String::from("@startmindmap\n* Racine\n");
+    for (digit, child) in sorted_children(trie.root()) {
+        write_node(digit, child, 1, &mut out);
+    }
+    out.push_str("@endmindmap\n");
+    out
+}
+
+/// Écrit la ligne du nœud `node` (profondeur `depth`, racine = 0) puis,
+/// récursivement, celles de ses descendants.
+fn write_node<T: Display>(digit: char, node: &Node<T>, depth: usize, out: &mut String) {
+    out.push_str(&"*".repeat(depth + 1));
+    out.push(' ');
+    out.push(digit);
+    if let Some(value) = node.value() {
+        out.push_str(" : ");
+        out.push_str(&value.to_string());
+    }
+    out.push('\n');
+
+    for (child_digit, child) in sorted_children(node) {
+        write_node(child_digit, child, depth + 1, out);
+    }
+}
+
+/// Enfants d'un nœud, triés par chiffre.
+fn sorted_children<T>(node: &Node<T>) -> Vec<(char, &Node<T>)> {
+    let mut children: Vec<(char, &Node<T>)> = node
+        .children()
+        .map(|(digit, child)| (*digit, child))
+        .collect();
+    children.sort_unstable_by_key(|(digit, _)| *digit);
+    children
+}
 
 /// Écrit `content` dans le fichier situé à `path`, en l'écrasant s'il existe.
 ///
@@ -28,6 +71,93 @@ mod tests {
     /// Chemin d'un fichier temporaire propre à chaque test.
     fn temp_path(file: &str) -> PathBuf {
         std::env::temp_dir().join(format!("phone_trie_{file}"))
+    }
+
+    /// Construit un trie de contacts à partir de couples (numéro, nom).
+    fn trie_of(contacts: &[(&str, &str)]) -> Trie<String> {
+        let mut trie = Trie::new();
+        for (number, name) in contacts {
+            trie.insert(number, name.to_string()).unwrap();
+        }
+        trie
+    }
+
+    #[test]
+    fn mindmap_of_two_numbers_matches_expected_output() {
+        let trie = trie_of(&[("0612", "Alice"), ("0634", "Bob")]);
+        let expected = "\
+@startmindmap
+* Racine
+** 0
+*** 6
+**** 1
+***** 2 : Alice
+**** 3
+***** 4 : Bob
+@endmindmap
+";
+        assert_eq!(to_mindmap(&trie), expected);
+    }
+
+    #[test]
+    fn mindmap_of_empty_trie_has_root_only() {
+        let trie: Trie<String> = Trie::new();
+        assert_eq!(to_mindmap(&trie), "@startmindmap\n* Racine\n@endmindmap\n");
+    }
+
+    #[test]
+    fn terminal_node_with_children_shows_value_and_children() {
+        // "15" est un préfixe de "1515" : le nœud 5 porte une valeur ET a un enfant.
+        let trie = trie_of(&[("1515", "Bob"), ("15", "SAMU")]);
+        let expected = "\
+@startmindmap
+* Racine
+** 1
+*** 5 : SAMU
+**** 1
+***** 5 : Bob
+@endmindmap
+";
+        assert_eq!(to_mindmap(&trie), expected);
+    }
+
+    #[test]
+    fn output_does_not_depend_on_insertion_order() {
+        let contacts = [("0634", "Bob"), ("0478", "Chloé"), ("0612", "Alice")];
+        let mut reversed = contacts;
+        reversed.reverse();
+
+        let forward = to_mindmap(&trie_of(&contacts));
+        let backward = to_mindmap(&trie_of(&reversed));
+
+        assert_eq!(forward, backward);
+        let expected = "\
+@startmindmap
+* Racine
+** 0
+*** 4
+**** 7
+***** 8 : Chloé
+*** 6
+**** 1
+***** 2 : Alice
+**** 3
+***** 4 : Bob
+@endmindmap
+";
+        assert_eq!(forward, expected);
+    }
+
+    #[test]
+    fn mindmap_written_to_file_can_be_read_back() {
+        let trie = trie_of(&[("0612", "Alice"), ("0634", "Bob")]);
+        let content = to_mindmap(&trie);
+        let path = temp_path("roundtrip.puml");
+
+        write_mindmap(&content, &path).unwrap();
+
+        assert_eq!(fs::read_to_string(&path).unwrap(), content);
+        fs::remove_file(&path).unwrap();
     }
 
     #[test]
