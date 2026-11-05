@@ -18,14 +18,38 @@ les mêmes nœuds, ce qui permet de voir le gain de place apporté par la struct
 cargo run --release -- data/02_common_parts.json
 ```
 
-Le programme écrit le MindMap dans `graph/<nom du fichier>.puml`, ici
-`graph/02_common_parts.puml`. En cas d'erreur (fichier introuvable, JSON
-invalide, numéro contenant autre chose que des chiffres), un message explicite
-est affiché et le programme s'arrête.
+Le programme écrit le MindMap dans `graph/<nom du fichier sans extension>.puml`,
+ici `graph/02_common_parts.puml`, et affiche le chemin du fichier généré. Il
+doit être lancé depuis la racine du projet, où se trouve le dossier `graph/`.
+
+Comportement en cas de problème :
+
+- **Numéro invalide** (vide, ou contenant autre chose que des chiffres) : le
+  contact est ignoré, un avertissement est affiché sur la sortie d'erreur, et
+  le MindMap est généré avec les autres numéros.
+
+  ```
+  avertissement : numéro ignoré, caractère invalide '-' dans le numéro 06-12-34-56-78
+  MindMap généré : graph/03_invalid_number.puml
+  ```
+
+- **Erreur bloquante** (argument manquant, fichier introuvable, JSON invalide,
+  écriture du `.puml` impossible) : un message est affiché sur la sortie
+  d'erreur et le programme s'arrête avec un code de sortie non nul (2 pour un
+  argument manquant, 1 sinon).
+
+  ```
+  erreur : JSON invalide : EOF while parsing an object at line 3 column 0
+  ```
+
+Si un même numéro apparaît plusieurs fois, c'est le dernier contact qui est
+gardé.
 
 ## Format d'entrée
 
-Un tableau JSON d'objets avec deux champs texte :
+Un tableau JSON d'objets avec deux champs texte, `name` (le nom du contact,
+affiché sur le MindMap) et `phone` (le numéro). Les deux champs sont
+obligatoires ; un champ manquant ou un JSON mal formé est une erreur bloquante.
 
 ```json
 [
@@ -61,6 +85,22 @@ cargo clippy --all-targets
 ```
 
 ## Visualisation PlantUML
+
+Le dossier `graph/` contient déjà les `.puml` générés à partir des jeux de test.
+Chaque chiffre est un nœud, et le nom du contact s'affiche sur le dernier
+chiffre de son numéro :
+
+```
+@startmindmap
+* Racine
+** 0
+*** 6
+**** 1
+***** 2 : Alice
+**** 3
+***** 4 : Bob
+@endmindmap
+```
 
 Avec le serveur PlantUML en Docker :
 

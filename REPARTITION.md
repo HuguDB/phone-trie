@@ -116,11 +116,11 @@ Tâches :
 - [x] `Cargo.toml` : `serde` (feature `derive`), `serde_json`, `thiserror`.
 - [x] `loader.rs` : écrire les structs `#[derive(Deserialize)]` qui collent au format des JSON d'exemple.
 - [x] `loader.rs` : `pub fn load_contacts(path: &Path) -> Result<Vec<Contact>, AppError>` avec `fs::read_to_string(path)?` puis `serde_json::from_str(&content)?`.
-- [ ] `loader.rs` : `pub fn build_trie(contacts: Vec<Contact>) -> (Trie<String>, Vec<AppError>)` qui appelle `insert` pour chaque contact. Un numéro invalide (`EmptyNumber`, `InvalidDigit`) n'arrête pas la construction : le contact est ignoré et l'erreur est ajoutée à la liste renvoyée. La lib n'affiche rien. Pas de `Result` ici : les seules erreurs bloquantes (fichier introuvable, JSON mal formé) sont déjà renvoyées par `load_contacts`.
-- [ ] `plantuml.rs` : `pub fn to_mindmap<T: Display>(trie: &Trie<T>) -> String`. On écrit `@startmindmap`, puis une ligne par nœud avec autant de `*` que la profondeur + 1, enfants triés par clé, et `@endmindmap`. Une fonction récursive `write_node(node, depth, &mut String)` suffit.
-- [ ] `plantuml.rs` : afficher la valeur sur les nœuds où un numéro se termine, par exemple `**** 7 : Alice`.
+- [x] `loader.rs` : `pub fn build_trie(contacts: Vec<Contact>) -> (Trie<String>, Vec<AppError>)` qui appelle `insert` pour chaque contact. Un numéro invalide (`EmptyNumber`, `InvalidDigit`) n'arrête pas la construction : le contact est ignoré et l'erreur est ajoutée à la liste renvoyée. La lib n'affiche rien. Pas de `Result` ici : les seules erreurs bloquantes (fichier introuvable, JSON mal formé) sont déjà renvoyées par `load_contacts`.
+- [x] `plantuml.rs` : `pub fn to_mindmap<T: Display>(trie: &Trie<T>) -> String`. On écrit `@startmindmap`, puis une ligne par nœud avec autant de `*` que la profondeur + 1, enfants triés par clé, et `@endmindmap`. Une fonction récursive `write_node(node, depth, &mut String)` suffit.
+- [x] `plantuml.rs` : afficher la valeur sur les nœuds où un numéro se termine, par exemple `**** 7 : Alice`.
 - [x] `plantuml.rs` : `pub fn write_mindmap(content: &str, path: &Path) -> Result<(), AppError>`.
-- [ ] `main.rs` minimal : prendre le chemin du JSON en argument (`std::env::args`), charger, construire, écrire dans `graph/<nom>.puml`. Afficher un avertissement par numéro rejeté renvoyé par `build_trie` (le programme continue), et afficher l'erreur proprement puis s'arrêter si la lecture du fichier ou du JSON échoue.
+- [x] `main.rs` minimal : prendre le chemin du JSON en argument (`std::env::args_os`, qui ne panique pas sur un chemin non UTF-8), charger, construire, écrire dans `graph/<nom>.puml`. Afficher un avertissement par numéro rejeté renvoyé par `build_trie` (le programme continue), et afficher l'erreur proprement puis s'arrêter si la lecture du fichier ou du JSON échoue.
 - [ ] Vérifier chaque `.puml` généré à la main dans le serveur PlantUML (Docker, `localhost:8080`).
 
 Exemple de sortie attendue pour `0612` (Alice) et `0634` (Bob) :
