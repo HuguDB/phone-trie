@@ -51,6 +51,17 @@ impl<T> Node<T> {
             .sum::<usize>()
     }
 
+    /// Somme des longueurs des numéros qui se terminent sous ce nœud,
+    /// `depth` étant la profondeur de ce nœud (racine = 0).
+    fn digits_below(&self, depth: usize) -> usize {
+        let own = if self.value.is_some() { depth } else { 0 };
+        own + self
+            .children
+            .iter()
+            .map(|(_, node)| node.digits_below(depth + 1))
+            .sum::<usize>()
+    }
+
     fn child(&self, digit: char) -> Option<&Node<T>> {
         self.children
             .iter()
@@ -118,6 +129,13 @@ impl<T> Trie<T> {
     /// de nœuds.
     pub fn len(&self) -> usize {
         self.root.stored_values()
+    }
+
+    /// Renvoie le nombre total de chiffres des numéros stockés, c'est-à-dire
+    /// la place qu'ils prendraient sans partage de préfixes. À comparer avec
+    /// [`Trie::node_count`] pour mesurer le gain du trie.
+    pub fn total_digits(&self) -> usize {
+        self.root.digits_below(0)
     }
 
     /// Indique si le trie ne contient aucun numéro.
@@ -298,6 +316,38 @@ mod tests {
         );
         assert!(!trie.contains("151"));
         assert_eq!(trie.node_count(), 4);
+    }
+
+    #[test]
+    fn empty_trie_has_no_digits() {
+        let trie: Trie<String> = Trie::new();
+        assert_eq!(trie.total_digits(), 0);
+    }
+
+    #[test]
+    fn total_digits_sums_lengths_of_stored_numbers() {
+        let mut trie = Trie::new();
+        trie.insert("0612", "Alice".to_string()).unwrap();
+        trie.insert("0634", "Bob".to_string()).unwrap();
+        assert_eq!(trie.total_digits(), 8);
+        assert_eq!(trie.node_count(), 6);
+    }
+
+    #[test]
+    fn total_digits_counts_prefix_numbers_in_full() {
+        let mut trie = Trie::new();
+        trie.insert("15", "SAMU".to_string()).unwrap();
+        trie.insert("1515", "Bob".to_string()).unwrap();
+        assert_eq!(trie.total_digits(), 6);
+    }
+
+    #[test]
+    fn total_digits_ignores_duplicates_and_invalid_numbers() {
+        let mut trie = Trie::new();
+        trie.insert("15", "SAMU".to_string()).unwrap();
+        trie.insert("15", "Urgences".to_string()).unwrap();
+        let _ = trie.insert("1a", "Eve".to_string());
+        assert_eq!(trie.total_digits(), 2);
     }
 
     #[test]

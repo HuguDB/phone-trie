@@ -44,5 +44,11 @@ fn run(input: &Path) -> Result<PathBuf, AppError> {
 
     let output = mindmap_path(input, Path::new(GRAPH_DIR));
     write_mindmap(&to_mindmap(&trie), &output)?;
+    println!(
+        "{} numéros stockés dans {} nœuds ({} chiffres sans trie)",
+        trie.len(),
+        trie.node_count(),
+        trie.total_digits()
+    );
     Ok(output)
 }

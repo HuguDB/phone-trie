@@ -80,6 +80,20 @@ fn common_parts_file_generates_mindmap() {
 }
 
 #[test]
+fn success_prints_statistics() {
+    let dir = TempDir::new("statistics");
+    fs::create_dir_all(dir.path().join("graph")).unwrap();
+
+    let output = run_in(dir.path(), &[&data_path("02_common_parts.json")]);
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("4 numéros stockés dans 28 nœuds (40 chiffres sans trie)"),
+        "stdout : {stdout}"
+    );
+}
+
+#[test]
 fn invalid_number_prints_warning_and_succeeds() {
     let dir = TempDir::new("invalid_number");
     fs::create_dir_all(dir.path().join("graph")).unwrap();

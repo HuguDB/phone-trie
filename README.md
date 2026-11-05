@@ -22,6 +22,17 @@ Le programme écrit le MindMap dans `graph/<nom du fichier sans extension>.puml`
 ici `graph/02_common_parts.puml`, et affiche le chemin du fichier généré. Il
 doit être lancé depuis la racine du projet, où se trouve le dossier `graph/`.
 
+Il affiche aussi une ligne de statistiques qui montre le gain apporté par le
+partage des préfixes :
+
+```
+4 numéros stockés dans 28 nœuds (40 chiffres sans trie)
+MindMap généré : graph/02_common_parts.puml
+```
+
+Sur `06_large.json`, 200 numéros de 10 chiffres tiennent dans 1084 nœuds au
+lieu de 2000 chiffres.
+
 Comportement en cas de problème :
 
 - **Numéro invalide** (vide, ou contenant autre chose que des chiffres) : le
