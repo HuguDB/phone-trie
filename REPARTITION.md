@@ -1,46 +1,30 @@
-# Projet Rust — Répartition des tâches
+# Répartition des tâches
 
-## Contexte et règles communes
+Le programme lit un fichier JSON de contacts, construit un trie en mémoire et
+génère un MindMap PlantUML.
 
-Le programme lit un fichier JSON de numéros, construit un trie en mémoire et génère un fichier PlantUML au format MindMap. Le travail est découpé en deux parties indépendantes : **A, le trie**, et **B, les entrées/sorties**.
+- **Partie A, le trie** (Célian) : `src/trie.rs`.
+- **Partie B, les entrées/sorties** (Hugo) : `src/error.rs`, `src/loader.rs`,
+  `src/plantuml.rs`, `src/main.rs`.
 
-Contraintes du sujet, valables pour tous les deux :
+## Contraintes du sujet
 
-- Le trie est codé from scratch, sans aucun crate pour cette partie.
-- `#![forbid(unsafe_code)]` figure dans `lib.rs`. Aucun code unsafe.
-- Aucun `unwrap()` ni `expect()` hors des tests : on renvoie des `Result`.
-- Les numéros n'ont pas de préfixe international. Seules l'insertion et le parcours sont demandés, pas de suppression ni d'update.
-- Un dossier `data/` contient les JSON de test, un dossier `graph/` contient les `.puml` générés.
-- Le README est obligatoire, avec au minimum la commande de lancement.
-- Les commits suivent les conventional commits, car l'historique git est noté.
-- Le code passe `cargo clippy` sans warning et `cargo test` au vert avant chaque push.
+- Trie codé sans crate.
+- `#![forbid(unsafe_code)]` dans `lib.rs`, aucun code `unsafe`.
+- Pas de `unwrap()` ni `expect()` hors des tests.
+- Numéros sans préfixe international. Insertion et parcours seulement.
+- JSON de test dans `data/`, `.puml` générés dans `graph/`.
+- README avec la commande de lancement.
 
-## Structure du repo et API commune
+## API commune
 
-On valide cette API ensemble avant de coder. Ensuite, chacun avance sans attendre l'autre.
-
-```
-phone_trie/
-├── Cargo.toml / Cargo.lock
-├── README.md
-├── data/            # JSON de test
-├── graph/           # .puml générés
-└── src/
-    ├── main.rs      # minimal : appelle la lib (B)
-    ├── lib.rs       # forbid(unsafe_code) + module tree
-    ├── error.rs     # erreurs communes (B, défini ensemble)
-    ├── trie.rs      # Partie A
-    ├── loader.rs    # Partie B
-    └── plantuml.rs  # Partie B
-```
-
-API publique du trie (`src/trie.rs`) :
+Trie (`src/trie.rs`) :
 
 ```rust
 pub struct Trie<T> { root: Node<T> }
 
 pub struct Node<T> {
-    children: Vec<(char, Node<T>)>, // au plus 10 enfants (chiffres 0-9)
+    children: Vec<(char, Node<T>)>, // 10 enfants au plus
     value: Option<T>,               // Some si un numéro se termine ici
 }
 
@@ -49,6 +33,10 @@ impl<T> Trie<T> {
     pub fn insert(&mut self, number: &str, value: T) -> Result<(), AppError>;
     pub fn contains(&self, number: &str) -> bool;
     pub fn root(&self) -> &Node<T>;
+    pub fn len(&self) -> usize;
+    pub fn is_empty(&self) -> bool;
+    pub fn node_count(&self) -> usize;
+    pub fn total_digits(&self) -> usize;
 }
 
 impl<T> Node<T> {
@@ -57,7 +45,9 @@ impl<T> Node<T> {
 }
 ```
 
-Erreurs communes (`src/error.rs`, avec `thiserror`) :
+Un numéro déjà présent voit sa valeur remplacée.
+
+Erreurs (`src/error.rs`) :
 
 ```rust
 #[derive(Debug, thiserror::Error)]
@@ -73,99 +63,56 @@ pub enum AppError {
 }
 ```
 
-`T` est la donnée stockée en fin de numéro, par exemple le nom du contact.
+Entrées/sorties :
 
-Choix du `Vec<(char, Node<T>)>` plutôt que d'une `HashMap` : un nœud a au plus 10 enfants (les chiffres 0-9). Une recherche linéaire sur 10 éléments est aussi rapide qu'un hash, un `Vec` est plus compact en mémoire (pas de table de hachage par nœud), et l'ordre des enfants est déterministe (ordre d'insertion). L'export PlantUML trie quand même les clés : la sortie ne dépend pas de l'ordre dans lequel les numéros ont été insérés.
+```rust
+// loader.rs
+pub fn load_contacts(path: &Path) -> Result<Vec<Contact>, AppError>;
+pub fn build_trie(contacts: Vec<Contact>) -> (Trie<String>, Vec<Rejected>);
 
-Format des JSON (question tranchée) : un tableau d'objets `{ "name": string, "phone": string }`. `T` vaut donc `String`, le nom du contact.
-
-## Partie A : le cœur du trie
-
-Objectif : un trie générique, codé from scratch, qui insère des numéros et expose un parcours en lecture seule. Fichier : `src/trie.rs`.
-
-Tâches, dans l'ordre TDD (un test qui échoue, puis le code minimal) :
-
-- [x] Créer `Node<T>` et `Trie<T>`, puis implémenter `Default` pour `Node` et `Trie::new()`.
-- [x] `insert` : valider le numéro (non vide, uniquement des chiffres `0-9`), sinon renvoyer `AppError::EmptyNumber` ou `AppError::InvalidDigit`.
-- [x] `insert` : descendre caractère par caractère avec `node = node.child_or_insert(c);` (cherche l'enfant dans le `Vec`, le crée s'il manque, renvoie `&mut Node<T>`), puis stocker `value` sur le dernier nœud.
-- [x] Décider et documenter le comportement en cas de doublon : la valeur est écrasée (documenté sur `insert`, testé).
-- [x] `contains(&self, number)` : parcours en lecture, `false` si un caractère manque ou si le dernier nœud n'a pas de valeur.
-- [x] `root()`, `Node::children()` et `Node::value()` pour que la partie B parcoure l'arbre sans accéder aux champs privés.
-- [x] Option bonus : `len()` (nombre de numéros) et `node_count()` (nombre de nœuds, racine exclue), utiles pour montrer le gain mémoire en soutenance. `is_empty()` accompagne `len()` (exigé par clippy).
-- [x] Doc comments `///` sur chaque élément public.
-
-Tests unitaires attendus (`#[cfg(test)] mod tests` dans `trie.rs`) :
-
-- Insérer un numéro puis `contains` renvoie `true`.
-- Deux numéros avec un préfixe commun partagent leurs nœuds (vérifié par `node_count`).
-- Un préfixe seul n'est pas considéré comme un numéro inséré.
-- Numéro vide et caractère non numérique renvoient la bonne erreur.
-- Comportement du doublon conforme à ce qui a été décidé.
-
-C'est terminé quand tous les tests passent, que `cargo clippy` est propre et que le code est relu par B.
-
-À savoir expliquer en soutenance : pourquoi `node = node.child_or_insert(c)` compile alors qu'on réassigne une référence `&mut` à chaque tour (l'ancienne référence est « consommée » par l'appel et remplacée par celle, plus courte, vers l'enfant), le choix du `Vec<(char, Node<T>)>` pour les enfants (10 enfants au plus : recherche linéaire aussi rapide qu'un hash, moins de mémoire, ordre déterministe), la complexité de l'insertion (proportionnelle à la longueur du numéro) et le gain mémoire apporté par les préfixes partagés.
-
-## Partie B : entrées/sorties
-
-Objectif : lire le JSON, gérer les erreurs, générer le MindMap PlantUML et brancher le tout dans `main.rs`. Fichiers : `error.rs`, `loader.rs`, `plantuml.rs`, `main.rs`.
-
-Tâches :
-
-- [x] `error.rs` : poser l'enum `AppError` validée ensemble. C'est la première PR, car A en a besoin.
-- [x] `Cargo.toml` : `serde` (feature `derive`), `serde_json`, `thiserror`.
-- [x] `loader.rs` : écrire les structs `#[derive(Deserialize)]` qui collent au format des JSON d'exemple.
-- [x] `loader.rs` : `pub fn load_contacts(path: &Path) -> Result<Vec<Contact>, AppError>` avec `fs::read_to_string(path)?` puis `serde_json::from_str(&content)?`.
-- [x] `loader.rs` : `pub fn build_trie(contacts: Vec<Contact>) -> (Trie<String>, Vec<Rejected>)` qui appelle `insert` pour chaque contact. Un numéro invalide (`EmptyNumber`, `InvalidDigit`) n'arrête pas la construction : le contact est ignoré et ajouté à la liste des rejets, sous la forme `Rejected { name, error }` (nom du contact et erreur). La lib n'affiche rien. Pas de `Result` ici : les seules erreurs bloquantes (fichier introuvable, JSON mal formé) sont déjà renvoyées par `load_contacts`.
-- [x] `plantuml.rs` : `pub fn to_mindmap<T: Display>(trie: &Trie<T>) -> String`. On écrit `@startmindmap`, puis une ligne par nœud avec autant de `*` que la profondeur + 1, enfants triés par clé, et `@endmindmap`. Une fonction récursive `write_node(node, depth, &mut String)` suffit.
-- [x] `plantuml.rs` : afficher la valeur sur les nœuds où un numéro se termine, par exemple `**** 7 : Alice`.
-- [x] `plantuml.rs` : `pub fn write_mindmap(content: &str, path: &Path) -> Result<(), AppError>`.
-- [x] `main.rs` minimal : prendre le chemin du JSON en argument (`std::env::args_os`, qui ne panique pas sur un chemin non UTF-8), charger, construire, écrire dans `graph/<nom>.puml`. Afficher un avertissement par contact rejeté renvoyé par `build_trie`, avec son nom et la raison (le programme continue), et afficher l'erreur proprement puis s'arrêter si la lecture du fichier ou du JSON échoue.
-- [x] Vérifier chaque `.puml` généré dans PlantUML (Docker). Tous les fichiers valides de `data/` passent la validation de syntaxe et se rendent en PNG sans dépasser la limite de 4096 px (`cargo test -- --ignored`, image `plantuml/plantuml`) ; les rendus de `02_common_parts` et `06_large` ont été vérifiés à l'œil.
-
-Exemple de sortie attendue pour `0612` (Alice) et `0634` (Bob) :
-
-```
-@startmindmap
-* Racine
-** 0
-*** 6
-**** 1
-***** 2 : Alice
-**** 3
-***** 4 : Bob
-@endmindmap
+// plantuml.rs
+pub fn to_mindmap<T: Display>(trie: &Trie<T>) -> String;
+pub fn write_mindmap(content: &str, path: &Path) -> Result<(), AppError>;
+pub fn mindmap_path(input: &Path, graph_dir: &Path) -> PathBuf;
 ```
 
-Tests unitaires attendus :
+Format JSON : un tableau d'objets `{ "name": string, "phone": string }`.
 
-- `load_contacts` sur un JSON valide renvoie le bon nombre d'éléments.
-- JSON mal formé et fichier inexistant renvoient `AppError::Json` et `AppError::Io`.
-- `build_trie` avec un numéro valide et un numéro invalide : le trie contient le valide, la liste des rejets contient exactement un contact, avec son nom et un `AppError::InvalidDigit`.
-- `to_mindmap` sur un trie de deux numéros produit exactement la sortie ci-dessus. Tant que A n'a pas fini, on peut tester sur un trie construit à la main.
-- Le trie vide produit un mindmap valide avec la racine seule.
+`build_trie` n'arrête pas sur un numéro invalide : le contact est renvoyé dans
+la liste des rejets et `main` affiche un avertissement. Un fichier introuvable
+ou un JSON invalide reste une erreur bloquante.
 
-C'est terminé quand `cargo run --release -- data/xxx.json` génère un `.puml` qui s'affiche correctement dans PlantUML, que les tests passent et que le code est relu par A.
+## Tâches
 
-À savoir expliquer en soutenance : ce que génère `#[derive(Deserialize)]` (une macro procédurale qui implémente le trait à la compilation), le fonctionnement de `?` avec `#[from]`, et la récursion de l'export.
+Partie A :
 
-## Tâches communes et workflow git
+- [x] `Node<T>`, `Trie<T>`, `new()` et `Default`.
+- [x] `insert` avec validation (`EmptyNumber`, `InvalidDigit`).
+- [x] `contains`, `root()`, `Node::children()`, `Node::value()`.
+- [x] Doublons : la valeur est remplacée.
+- [x] Bonus : `len()`, `is_empty()`, `node_count()`, `total_digits()`.
+- [x] Tests unitaires.
 
-Tâches à faire à deux :
+Partie B :
 
-- [x] Valider l'API et `AppError` avant de commencer à coder.
-- [x] Jeux de données dans `data/` : un cas simple, des préfixes communs, un numéro invalide et un fichier volumineux (`01` à `06`, dont un JSON mal formé et un tableau vide).
-- [x] README : description, prérequis, lancement (`cargo run --release -- data/xxx.json`), tests (`cargo test`) et visualisation PlantUML.
-- [ ] Relire le code de l'autre : le prof peut interroger n'importe qui sur n'importe quelle partie.
-- [ ] Préparer les 5 minutes de présentation de la soutenance.
+- [x] `AppError` et dépendances (`serde`, `serde_json`, `thiserror`).
+- [x] `load_contacts` et `build_trie`.
+- [x] `to_mindmap` (enfants triés, valeurs échappées) et `write_mindmap`.
+- [x] `main.rs` : argument, avertissements, statistiques, codes de sortie.
+- [x] Tests unitaires et tests du binaire (`tests/cli.rs`).
+- [x] Vérification des `.puml` dans PlantUML (`cargo test -- --ignored`).
 
-Workflow (en vigueur depuis le 5 novembre 2026) :
+À deux :
 
-Le plan initial prévoyait une branche et une PR relue par l'autre pour chaque tâche ; seule l'enum `AppError` a suivi ce circuit (PR #1). Nous avons ensuite choisi de travailler directement sur `main`, plus simple à deux sur un projet de cette taille. Les branches de travail ont été supprimées une fois intégrées.
+- [x] Fichiers de test dans `data/`.
+- [x] README.
+- [ ] Relire le code de l'autre.
+- [ ] Préparer la soutenance (5 minutes).
 
-1. On travaille directement sur `main` : pas de branche de fonctionnalité ni de PR.
-2. Des petits commits au format conventional commits : `feat:`, `fix:`, `test:`, `docs:`, `refactor:`, `chore:`. Par exemple `feat: add Trie::len`, `test: cover prefix numbers and edge cases in trie`.
-3. Avant chaque push, les trois commandes doivent passer : `cargo fmt --check`, `cargo clippy --all-targets` (zéro warning) et `cargo test`.
-4. Avant chaque push : `git pull --rebase`, puisque nous poussons tous les deux sur `main`. On relance les tests si le rebase a ramené des commits, puis `git push`.
-5. L'historique reste linéaire : pas de commit de merge, pas de réécriture de l'historique déjà poussé, pas de force push.
-6. Chacun relit les commits de l'autre après un `git pull` : le prof peut interroger n'importe qui sur n'importe quelle partie.
+## Conventions
+
+- On travaille sur `main`, en petits commits au format conventional commits
+  (`feat:`, `fix:`, `test:`, `docs:`, `refactor:`, `chore:`).
+- Avant chaque push : `cargo fmt --check`, `cargo clippy --all-targets` sans
+  warning et `cargo test`, puis `git pull --rebase`.
+- Historique linéaire, sans commit de merge.
