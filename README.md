@@ -1,69 +1,45 @@
 # phone-trie
 
-Gestionnaire de numéros de téléphone basé sur un trie (arbre de préfixes), écrit en Rust.
-
-Le programme lit un fichier JSON de contacts, insère chaque numéro dans un trie
-construit en mémoire, puis exporte l'arbre au format PlantUML MindMap pour le
-visualiser. Les numéros qui partagent un préfixe (par exemple `0612…`) partagent
-les mêmes nœuds, ce qui permet de voir le gain de place apporté par la structure.
+Programme Rust qui lit un fichier JSON de contacts, range les numéros dans un
+trie (arbre de préfixes) et exporte l'arbre en MindMap PlantUML. Les numéros
+qui commencent pareil partagent les mêmes nœuds.
 
 ## Prérequis
 
-- Rust stable (édition 2024), installé avec [rustup](https://rustup.rs).
-- Pour visualiser les graphes : Docker, ou Java avec `plantuml.jar`.
+- Rust stable, édition 2024 (installé avec [rustup](https://rustup.rs)).
+- Docker pour visualiser les MindMaps et lancer les tests de rendu.
 
 ## Lancement
+
+Depuis la racine du projet :
 
 ```
 cargo run --release -- data/02_common_parts.json
 ```
 
-Le programme écrit le MindMap dans `graph/<nom du fichier sans extension>.puml`,
-ici `graph/02_common_parts.puml`, et affiche le chemin du fichier généré. Le
-dossier `graph/` est relatif au répertoire courant : lancé depuis la racine du
-projet, le programme écrit dans le `graph/` du dépôt. S'il n'existe pas, il est
-créé.
-
-Il affiche aussi une ligne de statistiques qui montre le gain apporté par le
-partage des préfixes :
+Le MindMap est écrit dans `graph/<nom du fichier>.puml` (le dossier `graph/`
+est relatif au répertoire courant et créé s'il manque) :
 
 ```
 4 numéros stockés dans 28 nœuds (40 chiffres sans trie)
 MindMap généré : graph/02_common_parts.puml
 ```
 
-Sur `06_large.json`, 50 numéros de 10 chiffres tiennent dans 312 nœuds au
-lieu de 500 chiffres.
+Un numéro invalide (vide, ou avec autre chose que des chiffres) est ignoré avec
+un avertissement, et le reste du fichier est traité :
 
-Comportement en cas de problème :
+```
+avertissement : contact « Eve » ignoré, caractère invalide '-' dans le numéro 06-12-34-56-78
+```
 
-- **Numéro invalide** (vide, ou contenant autre chose que des chiffres) : le
-  contact est ignoré, un avertissement qui cite son nom est affiché sur la
-  sortie d'erreur, et le MindMap est généré avec les autres numéros.
+Un argument manquant arrête le programme avec le code 2. Un fichier
+introuvable, un JSON invalide ou une écriture impossible l'arrêtent avec le
+code 1. Si un numéro apparaît deux fois, le dernier contact est gardé.
 
-  ```
-  avertissement : contact « Eve » ignoré, caractère invalide '-' dans le numéro 06-12-34-56-78
-  0 numéros stockés dans 0 nœuds (0 chiffres sans trie)
-  MindMap généré : graph/03_invalid_number.puml
-  ```
+## Format JSON
 
-- **Erreur bloquante** (argument manquant, fichier introuvable, JSON invalide,
-  écriture du `.puml` impossible) : un message est affiché sur la sortie
-  d'erreur et le programme s'arrête avec un code de sortie non nul (2 pour un
-  argument manquant, 1 sinon).
-
-  ```
-  erreur : JSON invalide : EOF while parsing an object at line 3 column 0
-  ```
-
-Si un même numéro apparaît plusieurs fois, c'est le dernier contact qui est
-gardé.
-
-## Format d'entrée
-
-Un tableau JSON d'objets avec deux champs texte, `name` (le nom du contact,
-affiché sur le MindMap) et `phone` (le numéro). Les deux champs sont
-obligatoires ; un champ manquant ou un JSON mal formé est une erreur bloquante.
+Un tableau d'objets avec les champs `name` et `phone`, tous deux obligatoires.
+Les numéros n'ont pas de préfixe international.
 
 ```json
 [
@@ -72,15 +48,14 @@ obligatoires ; un champ manquant ou un JSON mal formé est une erreur bloquante.
 ]
 ```
 
-Les numéros sont écrits sans préfixe international et ne contiennent que des
-chiffres. Le dossier `data/` fournit des jeux de test :
+Fichiers de test dans `data/` :
 
 | Fichier | Contenu |
 |---|---|
 | `01_simple.json` | 2 contacts sans préfixe commun |
-| `02_common_parts.json` | 4 contacts avec préfixes partagés |
-| `03_invalid_number.json` | 1 numéro avec des tirets, rejeté à l'insertion |
-| `04_malformed.json` | JSON volontairement cassé, rejeté à la lecture |
+| `02_common_parts.json` | 4 contacts avec des préfixes communs |
+| `03_invalid_number.json` | 1 numéro avec des tirets (ignoré) |
+| `04_malformed.json` | JSON cassé (erreur) |
 | `05_empty.json` | tableau vide |
 | `06_large.json` | 50 contacts sur une dizaine de préfixes |
 
@@ -90,37 +65,24 @@ chiffres. Le dossier `data/` fournit des jeux de test :
 cargo test
 ```
 
-Cette commande lance les tests normaux, sans dépendance externe :
-
-- les tests unitaires, dans chaque fichier source (`#[cfg(test)] mod tests`) ;
-- les tests de bout en bout du binaire (`tests/cli.rs`) : codes de sortie,
-  messages et fichier généré, dans un dossier temporaire.
-
-La vérification du rendu PlantUML (`tests/plantuml_render.rs`) est à part,
-car elle nécessite Docker (image `plantuml/plantuml`) :
+Lance les tests unitaires (dans chaque fichier de `src/`) et les tests du
+binaire (`tests/cli.rs`).
 
 ```
 cargo test -- --ignored
 ```
 
-Pour chaque fichier valide de `data/`, elle génère le `.puml`, valide sa
-syntaxe avec PlantUML, rend le PNG avec les réglages par défaut et vérifie
-qu'il reste sous la limite de 4096 px. Sans Docker démarré, ces tests échouent
-avec le message « Docker requis : lancez Docker Desktop ». Ils sont marqués
-`#[ignore]` pour que `cargo test` reste reproductible sur toute machine.
+Vérifie avec Docker (image `plantuml/plantuml`) que chaque `.puml` généré est
+valide et que son rendu PNG tient dans la limite de 4096 px de PlantUML. Ces
+tests sont ignorés par défaut car ils ont besoin de Docker.
 
-Avant chaque commit, le projet doit aussi passer :
-
-```
-cargo fmt --check
-cargo clippy --all-targets
-```
+Le code passe aussi `cargo fmt --check` et `cargo clippy --all-targets` sans
+warning.
 
 ## Visualisation PlantUML
 
-Le dossier `graph/` contient déjà les `.puml` générés à partir des jeux de test.
-Chaque chiffre est un nœud, et le nom du contact s'affiche sur le dernier
-chiffre de son numéro :
+Les `.puml` des fichiers de test sont déjà dans `graph/`. Exemple pour `0612`
+(Alice) et `0634` (Bob) :
 
 ```
 @startmindmap
@@ -134,50 +96,34 @@ chiffre de son numéro :
 @endmindmap
 ```
 
-Les noms sont échappés pour PlantUML : un retour à la ligne devient une
-espace, et les caractères de mise en forme (`*`, `/`, `-`, `_`, `"`, `[`, `]`,
-`<`, `~`) sont neutralisés, si bien qu'un nom comme `**Bob**` s'affiche tel
-quel au lieu de passer en gras. Dans le `.puml`, `Jean-Pierre` s'écrit donc
-`Jean~-Pierre`.
-
-Avec le serveur PlantUML en Docker :
+Lancer le serveur PlantUML, puis ouvrir <http://localhost:8080> et coller le
+contenu d'un fichier `graph/<nom>.puml` :
 
 ```
 docker run -d -p 8080:8080 plantuml/plantuml-server:jetty
 ```
 
-Ouvrir ensuite <http://localhost:8080> et coller le contenu du fichier
-`graph/<nom>.puml` dans la zone de texte.
+Les noms sont échappés pour PlantUML : `Jean-Pierre` s'écrit `Jean~-Pierre`
+dans le `.puml` mais s'affiche normalement.
 
-Avec `plantuml.jar` en local :
+PlantUML coupe les images PNG au-delà de 4096 px. Pour un gros fichier, utiliser
+la sortie SVG ou lancer le serveur avec `-e PLANTUML_LIMIT_SIZE=16384`.
 
-```
-java -jar plantuml.jar graph/02_common_parts.puml
-```
-
-Cela génère une image `graph/02_common_parts.png`.
-
-**Gros fichiers :** PlantUML limite par défaut les images PNG à 4096 px de
-côté et coupe silencieusement ce qui dépasse. `06_large.json` a été
-dimensionné pour tenir dans cette limite. Pour un fichier plus volumineux,
-générer du SVG (sans limite de taille), par exemple
-`java -jar plantuml.jar -tsvg graph/<nom>.puml`, ou augmenter la limite avec la
-variable d'environnement `PLANTUML_LIMIT_SIZE`, par exemple
-`docker run -d -p 8080:8080 -e PLANTUML_LIMIT_SIZE=16384 plantuml/plantuml-server:jetty`.
-
-## Organisation du code
+## Structure du projet
 
 ```
 src/
-├── main.rs       # point d'entrée : lit les arguments et enchaîne les étapes
-├── lib.rs        # #![forbid(unsafe_code)] et déclaration des modules
-├── error.rs      # AppError, l'enum d'erreurs commune (thiserror)
-├── trie.rs       # Trie<T> et Node<T>, codés from scratch
+├── main.rs       # lecture de l'argument et enchaînement des étapes
+├── lib.rs        # #![forbid(unsafe_code)] et modules
+├── error.rs      # AppError (thiserror)
+├── trie.rs       # Trie<T> et Node<T>, sans crate
 ├── loader.rs     # lecture du JSON (serde) et construction du trie
-└── plantuml.rs   # export MindMap et écriture du fichier .puml
+└── plantuml.rs   # export MindMap et écriture du .puml
+tests/
+├── cli.rs              # tests du binaire
+└── plantuml_render.rs  # tests de rendu PlantUML (Docker)
 ```
 
-Règles du projet : aucun code `unsafe`, aucun `unwrap()` ni `expect()` hors
-des tests, erreurs propagées avec `Result` et l'opérateur `?`. Les seules
-dépendances sont `serde`, `serde_json` et `thiserror` ; le trie n'utilise
-aucun crate.
+Pas de code `unsafe`, pas de `unwrap()` ni `expect()` hors des tests : les
+erreurs remontent avec `Result` et `?`. Dépendances : `serde`, `serde_json` et
+`thiserror`.
