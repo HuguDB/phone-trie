@@ -1,14 +1,9 @@
-//! Trie (arbre de préfixes) de numéros de téléphone, codé sans crate.
-//!
-//! Chaque nœud correspond à un chiffre ; les numéros qui partagent un préfixe
-//! partagent les nœuds de ce préfixe. Une valeur (par exemple le nom du
-//! contact) est stockée sur le nœud du dernier chiffre de chaque numéro.
-//! Les enfants sont rangés dans un `Vec<(char, Node<T>)>` : au plus 10
-//! enfants par nœud, donc une recherche linéaire suffit.
+//! Trie de numéros de téléphone, codé sans crate. Chaque nœud est un chiffre,
+//! et ses enfants (10 au plus) sont rangés dans un `Vec`.
 
 use crate::error::AppError;
 
-/// Un nœud du trie : ses enfants et une valeur si un numéro se termine ici.
+/// Nœud du trie, avec une valeur si un numéro se termine ici.
 #[derive(Debug)]
 pub struct Node<T> {
     children: Vec<(char, Node<T>)>,
@@ -25,12 +20,12 @@ impl<T> Default for Node<T> {
 }
 
 impl<T> Node<T> {
-    /// Parcourt les enfants dans leur ordre d'insertion.
+    /// Enfants du nœud, dans l'ordre d'insertion.
     pub fn children(&self) -> impl Iterator<Item = (&char, &Node<T>)> {
         self.children.iter().map(|(digit, node)| (digit, node))
     }
 
-    /// Renvoie la valeur du nœud, si un numéro se termine ici.
+    /// Valeur du nœud, si un numéro se termine ici.
     pub fn value(&self) -> Option<&T> {
         self.value.as_ref()
     }
@@ -51,8 +46,7 @@ impl<T> Node<T> {
             .sum::<usize>()
     }
 
-    /// Somme des longueurs des numéros qui se terminent sous ce nœud,
-    /// `depth` étant la profondeur de ce nœud (racine = 0).
+    /// Somme des longueurs des numéros sous ce nœud (de profondeur `depth`).
     fn digits_below(&self, depth: usize) -> usize {
         let own = if self.value.is_some() { depth } else { 0 };
         own + self
@@ -81,7 +75,7 @@ impl<T> Node<T> {
     }
 }
 
-/// Arbre de préfixes qui associe une valeur à chaque numéro.
+/// Trie qui associe une valeur à chaque numéro.
 #[derive(Debug)]
 pub struct Trie<T> {
     root: Node<T>,
@@ -113,36 +107,29 @@ impl<T> Trie<T> {
             .is_some_and(|node| node.value.is_some())
     }
 
-    /// Renvoie la racine, pour parcourir le trie en lecture seule.
+    /// Racine du trie, pour le parcourir en lecture.
     pub fn root(&self) -> &Node<T> {
         &self.root
     }
 
-    /// Renvoie le nombre de nœuds, racine exclue.
+    /// Nombre de nœuds, sans compter la racine.
     pub fn node_count(&self) -> usize {
         self.root.descendants()
     }
 
-    /// Renvoie le nombre de numéros stockés (un doublon compte une fois).
-    ///
-    /// Parcourt tout le trie : la complexité est proportionnelle au nombre
-    /// de nœuds.
+    /// Nombre de numéros stockés.
     pub fn len(&self) -> usize {
         self.root.stored_values()
     }
 
-    /// Renvoie le nombre total de chiffres des numéros stockés, c'est-à-dire
-    /// la place qu'ils prendraient sans partage de préfixes. À comparer avec
-    /// [`Trie::node_count`] pour mesurer le gain du trie.
+    /// Nombre total de chiffres des numéros stockés, à comparer avec
+    /// [`Trie::node_count`].
     pub fn total_digits(&self) -> usize {
         self.root.digits_below(0)
     }
 
-    /// Indique si le trie ne contient aucun numéro.
-    ///
-    /// En temps constant : sans suppression, et comme `insert` valide le
-    /// numéro avant de créer le moindre nœud, la racine n'a des enfants que
-    /// si au moins un numéro a été inséré.
+    /// Indique si le trie est vide. Sans suppression, la racine n'a des
+    /// enfants que si un numéro a été inséré.
     pub fn is_empty(&self) -> bool {
         self.root.children.is_empty()
     }
@@ -418,7 +405,7 @@ mod tests {
         // Lettre accentuée.
         let accent = trie.insert("06é2", "Alice".to_string());
         assert!(matches!(accent, Err(AppError::InvalidDigit('é', _))));
-        // Chiffres arabo-indiens : numériques pour Unicode, mais pas ASCII.
+        // Chiffres arabes : numériques en Unicode mais pas ASCII.
         let arabic = trie.insert("٠٦١٢", "Bob".to_string());
         assert!(matches!(arabic, Err(AppError::InvalidDigit('٠', _))));
         // Chiffres pleine chasse.

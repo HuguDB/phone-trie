@@ -1,5 +1,5 @@
-//! Point d'entrée : lit le chemin du JSON en argument, construit le trie et
-//! écrit le MindMap PlantUML dans `graph/`. Toute la logique est dans la lib.
+//! Programme principal : lit le JSON passé en argument et écrit le MindMap
+//! dans `graph/`.
 
 use std::env;
 use std::path::{Path, PathBuf};
@@ -9,12 +9,11 @@ use phone_trie::error::AppError;
 use phone_trie::loader::{build_trie, load_contacts};
 use phone_trie::plantuml::{mindmap_path, to_mindmap, write_mindmap};
 
-/// Dossier où sont écrits les `.puml`.
+/// Dossier de sortie, relatif au répertoire courant.
 const GRAPH_DIR: &str = "graph";
 
 fn main() -> ExitCode {
-    // `args_os` plutôt que `args` : `args` panique si un argument n'est pas
-    // de l'UTF-8 valide, alors qu'un chemin de fichier peut ne pas l'être.
+    // args_os car un chemin n'est pas forcément de l'UTF-8 valide.
     let Some(input) = env::args_os().nth(1).map(PathBuf::from) else {
         eprintln!("usage : phone-trie <fichier.json>");
         eprintln!("exemple : cargo run --release -- data/02_common_parts.json");
@@ -33,8 +32,8 @@ fn main() -> ExitCode {
     }
 }
 
-/// Charge les contacts, construit le trie et écrit le MindMap.
-/// Renvoie le chemin du fichier généré.
+/// Charge les contacts, construit le trie et écrit le MindMap. Renvoie le
+/// chemin du fichier écrit.
 fn run(input: &Path) -> Result<PathBuf, AppError> {
     let contacts = load_contacts(input)?;
     let (trie, rejected) = build_trie(contacts);

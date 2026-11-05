@@ -1,12 +1,11 @@
-//! Tests de bout en bout du binaire : codes de sortie, messages et fichier
-//! généré. Chaque test lance le programme dans son propre dossier temporaire,
-//! jamais dans le dossier `graph/` du dépôt.
+//! Tests du binaire : codes de sortie, messages et fichier généré. Chaque test
+//! tourne dans son propre dossier temporaire.
 
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-/// Dossier temporaire vide, propre à un test et à ce processus de test.
+/// Dossier temporaire supprimé à la fin du test.
 struct TempDir(PathBuf);
 
 impl TempDir {
@@ -29,14 +28,14 @@ impl Drop for TempDir {
     }
 }
 
-/// Chemin absolu d'un fichier du dossier `data/` du projet.
+/// Chemin d'un fichier de `data/`.
 fn data_path(file: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("data")
         .join(file)
 }
 
-/// Lance le binaire depuis `dir` avec les arguments donnés.
+/// Lance le binaire depuis `dir`.
 fn run_in(dir: &Path, args: &[&Path]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_phone-trie"))
         .args(args)
@@ -50,7 +49,7 @@ fn stderr(output: &Output) -> String {
 }
 
 #[test]
-fn without_argument_prints_usage_and_exits_with_2() {
+fn no_argument_exits_with_2() {
     let dir = TempDir::new("no_arg");
 
     let output = run_in(dir.path(), &[]);

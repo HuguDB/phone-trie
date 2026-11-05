@@ -1,6 +1,4 @@
-//! Lecture des contacts depuis un fichier JSON.
-//!
-//! Format attendu : un tableau d'objets `{ "name": string, "phone": string }`.
+//! Lecture du fichier JSON de contacts et construction du trie.
 
 use std::fs;
 use std::path::Path;
@@ -10,56 +8,39 @@ use serde::Deserialize;
 use crate::error::AppError;
 use crate::trie::Trie;
 
-/// Un contact tel qu'il apparaît dans le fichier JSON.
-///
-/// Les noms des champs doivent correspondre exactement aux clés du JSON :
-/// c'est ce que `#[derive(Deserialize)]` utilise pour remplir la struct.
-/// Pour changer de format, il suffit de modifier cette struct.
+/// Contact du fichier JSON : `{ "name": ..., "phone": ... }`.
 #[derive(Debug, Deserialize)]
 pub struct Contact {
-    /// Nom du contact, stocké en fin de numéro dans le trie.
+    /// Nom du contact.
     pub name: String,
-    /// Numéro de téléphone brut, sans validation à ce stade.
+    /// Numéro, pas encore validé.
     pub phone: String,
 }
 
-/// Lit le fichier JSON situé à `path` et renvoie la liste des contacts.
-///
-/// # Erreurs
-///
-/// - `AppError::Io` si le fichier ne peut pas être lu (absent, droits...).
-/// - `AppError::Json` si le contenu n'est pas un tableau de contacts valide.
+/// Lit les contacts d'un fichier JSON. Renvoie `AppError::Io` si le fichier
+/// est illisible et `AppError::Json` si son contenu est invalide.
 pub fn load_contacts(path: &Path) -> Result<Vec<Contact>, AppError> {
     let content = fs::read_to_string(path)?;
     let contacts = serde_json::from_str(&content)?;
     Ok(contacts)
 }
 
-/// Un contact écarté par [`build_trie`] parce que son numéro est invalide.
+/// Contact ignoré par [`build_trie`] car son numéro est invalide.
 #[derive(Debug)]
 pub struct Rejected {
-    /// Nom du contact écarté.
+    /// Nom du contact.
     pub name: String,
-    /// Raison du rejet (`AppError::EmptyNumber` ou `AppError::InvalidDigit`,
-    /// qui contient le numéro fautif).
+    /// Raison du rejet.
     pub error: AppError,
 }
 
-/// Construit un trie qui associe chaque numéro au nom du contact.
-///
-/// Un numéro invalide (vide ou contenant autre chose que des chiffres)
-/// n'arrête pas la construction : le contact est ignoré et ajouté à la liste
-/// des rejets renvoyée, dans l'ordre des contacts. Rien n'est affiché ici,
-/// c'est à l'appelant de signaler les contacts rejetés.
-///
-/// Il n'y a pas de `Result` : les seules erreurs bloquantes (fichier
-/// introuvable, JSON invalide) sont déjà renvoyées par [`load_contacts`].
+/// Construit le trie (numéro vers nom). Les contacts au numéro invalide ne
+/// sont pas insérés et sont renvoyés à part, dans l'ordre du fichier.
 pub fn build_trie(contacts: Vec<Contact>) -> (Trie<String>, Vec<Rejected>) {
     let mut trie = Trie::new();
     let mut rejected = Vec::new();
     for contact in contacts {
-        // `insert` prend la valeur par move : on garde une copie du nom pour
-        // pouvoir le citer si le numéro est rejeté.
+        // On clone le nom pour pouvoir l'afficher si le numéro est rejeté.
         if let Err(error) = trie.insert(&contact.phone, contact.name.clone()) {
             rejected.push(Rejected {
                 name: contact.name,
@@ -75,7 +56,7 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
 
-    /// Chemin absolu d'un fichier du dossier `data/` du projet.
+    /// Chemin d'un fichier de `data/`.
     fn data_path(file: &str) -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("data")
@@ -94,7 +75,6 @@ mod tests {
 
     #[test]
     fn invalid_number_is_still_valid_json() {
-        // Le format du numéro n'est pas vérifié ici : c'est le rôle du trie.
         let contacts = load_contacts(&data_path("03_invalid_number.json")).unwrap();
         assert_eq!(contacts.len(), 1);
         assert_eq!(contacts[0].phone, "06-12-34-56-78");
@@ -126,7 +106,7 @@ mod tests {
     }
 
     #[test]
-    fn common_parts_file_builds_four_numbers_without_error() {
+    fn common_parts_builds_four_numbers() {
         let contacts = load_contacts(&data_path("02_common_parts.json")).unwrap();
         let phones: Vec<String> = contacts.iter().map(|c| c.phone.clone()).collect();
 
@@ -140,7 +120,7 @@ mod tests {
     }
 
     #[test]
-    fn invalid_number_file_gives_empty_trie_and_one_error() {
+    fn invalid_number_file_gives_one_rejection() {
         let contacts = load_contacts(&data_path("03_invalid_number.json")).unwrap();
 
         let (trie, rejected) = build_trie(contacts);

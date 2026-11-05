@@ -1,6 +1,4 @@
-//! Export du trie au format PlantUML MindMap.
-//!
-//! `to_mindmap` génère le texte du MindMap, `write_mindmap` l'écrit sur disque.
+//! Export du trie en MindMap PlantUML.
 
 use std::ffi::OsStr;
 use std::fmt::Display;
@@ -10,12 +8,9 @@ use std::path::{Path, PathBuf};
 use crate::error::AppError;
 use crate::trie::{Node, Trie};
 
-/// Génère le MindMap PlantUML d'un trie.
-///
-/// La racine s'affiche `* Racine`, puis chaque nœud occupe une ligne avec
-/// autant de `*` que sa profondeur + 1, suivis de son chiffre. Un nœud où un
-/// numéro se termine affiche aussi sa valeur : `**** 7 : Alice`. Les enfants
-/// sont triés par chiffre, la sortie ne dépend donc pas de l'ordre d'insertion.
+/// Génère le MindMap d'un trie : une ligne par nœud avec profondeur + 1
+/// étoiles, et la valeur sur les nœuds terminaux (`**** 7 : Alice`).
+/// Les enfants sont triés par chiffre.
 pub fn to_mindmap<T: Display>(trie: &Trie<T>) -> String {
     let mut out = String::from("@startmindmap\n* Racine\n");
     for (digit, child) in sorted_children(trie.root()) {
@@ -25,8 +20,7 @@ pub fn to_mindmap<T: Display>(trie: &Trie<T>) -> String {
     out
 }
 
-/// Écrit la ligne du nœud `node` (profondeur `depth`, racine = 0) puis,
-/// récursivement, celles de ses descendants.
+/// Écrit la ligne d'un nœud puis celles de ses enfants.
 fn write_node<T: Display>(digit: char, node: &Node<T>, depth: usize, out: &mut String) {
     out.push_str(&"*".repeat(depth + 1));
     out.push(' ');
@@ -42,18 +36,9 @@ fn write_node<T: Display>(digit: char, node: &Node<T>, depth: usize, out: &mut S
     }
 }
 
-/// Rend une valeur sûre pour une ligne de MindMap PlantUML.
-///
-/// - Les retours à la ligne (`\r\n`, `\n`, `\r`) et les autres caractères de
-///   contrôle deviennent une espace : une valeur occupe toujours une seule
-///   ligne et ne peut pas créer de faux nœud.
-/// - Les caractères du balisage Creole (`*`, `/`, `"`, `-`, `_`, `[`, `]`)
-///   et `<` (balises HTML, icônes) sont précédés de `~`, le caractère
-///   d'échappement de PlantUML.
-/// - `~` lui-même devient `<U+007E>` : un tilde doublé (`~~`) n'est pas
-///   échappé par PlantUML, qui l'interprète comme du soulignement ondulé.
-///
-/// Vérifié avec le rendu de l'image Docker `plantuml/plantuml`.
+/// Échappe une valeur pour PlantUML : les retours à la ligne deviennent des
+/// espaces et les caractères de mise en forme sont précédés de `~`. Le tilde
+/// est écrit `<U+007E>` car PlantUML n'échappe pas `~~`.
 fn escape_value(value: &str) -> String {
     let mut escaped = String::with_capacity(value.len());
     let mut chars = value.chars().peekable();
@@ -88,14 +73,7 @@ fn sorted_children<T>(node: &Node<T>) -> Vec<(char, &Node<T>)> {
     children
 }
 
-/// Écrit `content` dans le fichier situé à `path`, en l'écrasant s'il existe.
-/// Les dossiers parents manquants sont créés.
-///
-/// # Erreurs
-///
-/// `AppError::Io` si un dossier parent ou le fichier ne peut pas être créé ou
-/// écrit, par exemple si un parent est un fichier ordinaire ou en cas de
-/// droits insuffisants.
+/// Écrit le MindMap dans `path` en créant les dossiers manquants.
 pub fn write_mindmap(content: &str, path: &Path) -> Result<(), AppError> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
@@ -104,11 +82,8 @@ pub fn write_mindmap(content: &str, path: &Path) -> Result<(), AppError> {
     Ok(())
 }
 
-/// Chemin du `.puml` à générer pour le fichier d'entrée `input` :
-/// `<graph_dir>/<nom de input sans extension>.puml`.
-///
-/// Si `input` n'a pas de nom de fichier (par exemple `..`), le fichier
-/// s'appelle `mindmap.puml`.
+/// Chemin du `.puml` pour `input` : `<graph_dir>/<nom sans extension>.puml`,
+/// ou `mindmap.puml` si `input` n'a pas de nom de fichier.
 pub fn mindmap_path(input: &Path, graph_dir: &Path) -> PathBuf {
     let stem = input.file_stem().unwrap_or(OsStr::new("mindmap"));
     graph_dir.join(stem).with_extension("puml")
@@ -120,9 +95,7 @@ mod tests {
     use std::fs;
     use std::path::PathBuf;
 
-    /// Chemin temporaire unique : nom du test et identifiant du processus,
-    /// pour que deux tests (ou deux `cargo test` lancés en même temps)
-    /// n'écrivent jamais dans le même fichier.
+    /// Chemin temporaire propre au test et au processus.
     fn temp_path(test_name: &str, file: &str) -> PathBuf {
         std::env::temp_dir().join(format!(
             "phone_trie_{test_name}_{}_{file}",
@@ -137,12 +110,12 @@ mod tests {
     }
 
     #[test]
-    fn mindmap_path_without_file_name_falls_back_to_default() {
+    fn mindmap_path_falls_back_to_default() {
         let path = mindmap_path(Path::new(".."), Path::new("graph"));
         assert_eq!(path, Path::new("graph").join("mindmap.puml"));
     }
 
-    /// Construit un trie de contacts à partir de couples (numéro, nom).
+    /// Trie construit à partir de couples (numéro, nom).
     fn trie_of(contacts: &[(&str, &str)]) -> Trie<String> {
         let mut trie = Trie::new();
         for (number, name) in contacts {
@@ -175,8 +148,8 @@ mod tests {
     }
 
     #[test]
-    fn terminal_node_with_children_shows_value_and_children() {
-        // "15" est un préfixe de "1515" : le nœud 5 porte une valeur ET a un enfant.
+    fn prefix_node_shows_value_and_children() {
+        // 15 est un préfixe de 1515.
         let trie = trie_of(&[("1515", "Bob"), ("15", "SAMU")]);
         let expected = "\
 @startmindmap
@@ -224,14 +197,14 @@ mod tests {
     }
 
     #[test]
-    fn escape_replaces_line_breaks_and_tabs_with_spaces() {
+    fn escape_replaces_line_breaks() {
         assert_eq!(escape_value("Alice\nDupont"), "Alice Dupont");
         assert_eq!(escape_value("Alice\r\nDupont"), "Alice Dupont");
         assert_eq!(escape_value("Alice\tDupont\r"), "Alice Dupont ");
     }
 
     #[test]
-    fn escape_neutralizes_mindmap_and_creole_markup() {
+    fn escape_neutralizes_markup() {
         assert_eq!(escape_value("*Bob"), "~*Bob");
         assert_eq!(escape_value("**gras**"), "~*~*gras~*~*");
         assert_eq!(escape_value("<b>x</b>"), "~<b>x~<~/b>");
@@ -248,7 +221,7 @@ mod tests {
     }
 
     #[test]
-    fn special_names_stay_on_one_line_of_the_mindmap() {
+    fn special_names_stay_on_one_line() {
         let trie = trie_of(&[("12", "*Bob\nDupont"), ("15", "SAMU")]);
         let expected = "\
 @startmindmap
@@ -312,10 +285,10 @@ mod tests {
     }
 
     #[test]
-    fn write_mindmap_under_a_regular_file_returns_io_error() {
-        // Le « dossier » parent est un fichier : impossible de le créer.
+    fn write_mindmap_under_a_file_returns_io_error() {
+        // Le parent est un fichier, pas un dossier.
         let file = temp_path(
-            "write_mindmap_under_a_regular_file_returns_io_error",
+            "write_mindmap_under_a_file_returns_io_error",
             "pas_un_dossier.txt",
         );
         fs::write(&file, "fichier").unwrap();

@@ -1,8 +1,5 @@
 #![forbid(unsafe_code)]
-//! Gestionnaire de numéros de téléphone basé sur un trie.
-//!
-//! Le programme lit un fichier JSON de contacts, construit un trie en mémoire
-//! et génère un MindMap PlantUML.
+//! Gestion de numéros de téléphone avec un trie, et export en MindMap PlantUML.
 
 pub mod error;
 pub mod loader;
