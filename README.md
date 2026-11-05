@@ -90,7 +90,25 @@ chiffres. Le dossier `data/` fournit des jeux de test :
 cargo test
 ```
 
-Les tests unitaires sont dans chaque fichier source (`#[cfg(test)] mod tests`).
+Cette commande lance les tests normaux, sans dépendance externe :
+
+- les tests unitaires, dans chaque fichier source (`#[cfg(test)] mod tests`) ;
+- les tests de bout en bout du binaire (`tests/cli.rs`) : codes de sortie,
+  messages et fichier généré, dans un dossier temporaire.
+
+La vérification du rendu PlantUML (`tests/plantuml_render.rs`) est à part,
+car elle nécessite Docker (image `plantuml/plantuml`) :
+
+```
+cargo test -- --ignored
+```
+
+Pour chaque fichier valide de `data/`, elle génère le `.puml`, valide sa
+syntaxe avec PlantUML, rend le PNG avec les réglages par défaut et vérifie
+qu'il reste sous la limite de 4096 px. Sans Docker démarré, ces tests échouent
+avec le message « Docker requis : lancez Docker Desktop ». Ils sont marqués
+`#[ignore]` pour que `cargo test` reste reproductible sur toute machine.
+
 Avant chaque commit, le projet doit aussi passer :
 
 ```
