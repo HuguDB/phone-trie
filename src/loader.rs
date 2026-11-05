@@ -8,6 +8,7 @@ use std::path::Path;
 use serde::Deserialize;
 
 use crate::error::AppError;
+use crate::trie::Trie;
 
 /// Un contact tel qu'il apparaît dans le fichier JSON.
 ///
@@ -32,6 +33,26 @@ pub fn load_contacts(path: &Path) -> Result<Vec<Contact>, AppError> {
     let content = fs::read_to_string(path)?;
     let contacts = serde_json::from_str(&content)?;
     Ok(contacts)
+}
+
+/// Construit un trie qui associe chaque numéro au nom du contact.
+///
+/// Un numéro invalide (vide ou contenant autre chose que des chiffres)
+/// n'arrête pas la construction : le contact est ignoré et l'erreur est
+/// ajoutée à la liste renvoyée, dans l'ordre des contacts. Rien n'est affiché
+/// ici, c'est à l'appelant de signaler les numéros rejetés.
+///
+/// Il n'y a pas de `Result` : les seules erreurs bloquantes (fichier
+/// introuvable, JSON invalide) sont déjà renvoyées par [`load_contacts`].
+pub fn build_trie(contacts: Vec<Contact>) -> (Trie<String>, Vec<AppError>) {
+    let mut trie = Trie::new();
+    let mut errors = Vec::new();
+    for contact in contacts {
+        if let Err(err) = trie.insert(&contact.phone, contact.name) {
+            errors.push(err);
+        }
+    }
+    (trie, errors)
 }
 
 #[cfg(test)]
@@ -80,5 +101,59 @@ mod tests {
     fn empty_array_returns_empty_vec() {
         let contacts = load_contacts(&data_path("05_empty.json")).unwrap();
         assert!(contacts.is_empty());
+    }
+
+    fn contact(name: &str, phone: &str) -> Contact {
+        Contact {
+            name: name.to_string(),
+            phone: phone.to_string(),
+        }
+    }
+
+    #[test]
+    fn common_parts_file_builds_four_numbers_without_error() {
+        let contacts = load_contacts(&data_path("02_common_parts.json")).unwrap();
+        let phones: Vec<String> = contacts.iter().map(|c| c.phone.clone()).collect();
+
+        let (trie, errors) = build_trie(contacts);
+
+        assert!(errors.is_empty());
+        assert_eq!(phones.len(), 4);
+        for phone in &phones {
+            assert!(trie.contains(phone), "{phone} absent du trie");
+        }
+    }
+
+    #[test]
+    fn invalid_number_file_gives_empty_trie_and_one_error() {
+        let contacts = load_contacts(&data_path("03_invalid_number.json")).unwrap();
+
+        let (trie, errors) = build_trie(contacts);
+
+        assert_eq!(trie.node_count(), 0);
+        assert_eq!(errors.len(), 1);
+        assert!(matches!(
+            &errors[0],
+            AppError::InvalidDigit('-', n) if n == "06-12-34-56-78"
+        ));
+    }
+
+    #[test]
+    fn mixed_contacts_keep_only_valid_numbers() {
+        let contacts = vec![
+            contact("Alice", "0612"),
+            contact("Eve", "06 12"),
+            contact("Bob", "0634"),
+            contact("Vide", ""),
+        ];
+
+        let (trie, errors) = build_trie(contacts);
+
+        assert!(trie.contains("0612"));
+        assert!(trie.contains("0634"));
+        assert!(!trie.contains("06 12"));
+        assert_eq!(errors.len(), 2);
+        assert!(matches!(errors[0], AppError::InvalidDigit(' ', _)));
+        assert!(matches!(errors[1], AppError::EmptyNumber));
     }
 }
