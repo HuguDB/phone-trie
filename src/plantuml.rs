@@ -120,9 +120,14 @@ mod tests {
     use std::fs;
     use std::path::PathBuf;
 
-    /// Chemin d'un fichier temporaire propre à chaque test.
-    fn temp_path(file: &str) -> PathBuf {
-        std::env::temp_dir().join(format!("phone_trie_{file}"))
+    /// Chemin temporaire unique : nom du test et identifiant du processus,
+    /// pour que deux tests (ou deux `cargo test` lancés en même temps)
+    /// n'écrivent jamais dans le même fichier.
+    fn temp_path(test_name: &str, file: &str) -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "phone_trie_{test_name}_{}_{file}",
+            std::process::id()
+        ))
     }
 
     #[test]
@@ -260,7 +265,7 @@ mod tests {
     fn mindmap_written_to_file_can_be_read_back() {
         let trie = trie_of(&[("0612", "Alice"), ("0634", "Bob")]);
         let content = to_mindmap(&trie);
-        let path = temp_path("roundtrip.puml");
+        let path = temp_path("mindmap_written_to_file_can_be_read_back", "roundtrip.puml");
 
         write_mindmap(&content, &path).unwrap();
 
@@ -270,7 +275,7 @@ mod tests {
 
     #[test]
     fn write_mindmap_creates_file_with_content() {
-        let path = temp_path("ok.puml");
+        let path = temp_path("write_mindmap_creates_file_with_content", "ok.puml");
         let content = "@startmindmap\n* Racine\n@endmindmap\n";
 
         write_mindmap(content, &path).unwrap();
@@ -282,7 +287,7 @@ mod tests {
 
     #[test]
     fn write_mindmap_overwrites_existing_file() {
-        let path = temp_path("overwrite.puml");
+        let path = temp_path("write_mindmap_overwrites_existing_file", "overwrite.puml");
         fs::write(&path, "ancien contenu beaucoup plus long").unwrap();
 
         write_mindmap("nouveau", &path).unwrap();
@@ -293,7 +298,10 @@ mod tests {
 
     #[test]
     fn write_mindmap_creates_missing_directories() {
-        let dir = temp_path("dossier_inexistant");
+        let dir = temp_path(
+            "write_mindmap_creates_missing_directories",
+            "dossier_inexistant",
+        );
         let _ = fs::remove_dir_all(&dir);
         let path = dir.join("sous_dossier").join("x.puml");
 
@@ -306,7 +314,10 @@ mod tests {
     #[test]
     fn write_mindmap_under_a_regular_file_returns_io_error() {
         // Le « dossier » parent est un fichier : impossible de le créer.
-        let file = temp_path("pas_un_dossier.txt");
+        let file = temp_path(
+            "write_mindmap_under_a_regular_file_returns_io_error",
+            "pas_un_dossier.txt",
+        );
         fs::write(&file, "fichier").unwrap();
 
         let result = write_mindmap("contenu", &file.join("x.puml"));
