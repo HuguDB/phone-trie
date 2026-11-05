@@ -13,7 +13,7 @@ Contraintes du sujet, valables pour tous les deux :
 - Un dossier `data/` contient les JSON de test, un dossier `graph/` contient les `.puml` générés.
 - Le README est obligatoire, avec au minimum la commande de lancement.
 - Les commits suivent les conventional commits, car l'historique git est noté.
-- Le code passe `cargo clippy` sans warning et `cargo test` au vert avant chaque merge.
+- Le code passe `cargo clippy` sans warning et `cargo test` au vert avant chaque push.
 
 ## Structure du repo et API commune
 
@@ -81,7 +81,7 @@ Format des JSON (question tranchée) : un tableau d'objets `{ "name": string, "p
 
 ## Partie A : le cœur du trie
 
-Objectif : un trie générique, codé from scratch, qui insère des numéros et expose un parcours en lecture seule. Fichier : `src/trie.rs`. Branche : `feat/trie`.
+Objectif : un trie générique, codé from scratch, qui insère des numéros et expose un parcours en lecture seule. Fichier : `src/trie.rs`.
 
 Tâches, dans l'ordre TDD (un test qui échoue, puis le code minimal) :
 
@@ -102,13 +102,13 @@ Tests unitaires attendus (`#[cfg(test)] mod tests` dans `trie.rs`) :
 - Numéro vide et caractère non numérique renvoient la bonne erreur.
 - Comportement du doublon conforme à ce qui a été décidé.
 
-C'est terminé quand tous les tests passent, que `cargo clippy` est propre et que la PR est relue par B.
+C'est terminé quand tous les tests passent, que `cargo clippy` est propre et que le code est relu par B.
 
 À savoir expliquer en soutenance : pourquoi `node = node.child_or_insert(c)` compile alors qu'on réassigne une référence `&mut` à chaque tour (l'ancienne référence est « consommée » par l'appel et remplacée par celle, plus courte, vers l'enfant), le choix du `Vec<(char, Node<T>)>` pour les enfants (10 enfants au plus : recherche linéaire aussi rapide qu'un hash, moins de mémoire, ordre déterministe), la complexité de l'insertion (proportionnelle à la longueur du numéro) et le gain mémoire apporté par les préfixes partagés.
 
 ## Partie B : entrées/sorties
 
-Objectif : lire le JSON, gérer les erreurs, générer le MindMap PlantUML et brancher le tout dans `main.rs`. Fichiers : `error.rs`, `loader.rs`, `plantuml.rs`, `main.rs`. Branches : `feat/errors`, `feat/loader`, `feat/plantuml`.
+Objectif : lire le JSON, gérer les erreurs, générer le MindMap PlantUML et brancher le tout dans `main.rs`. Fichiers : `error.rs`, `loader.rs`, `plantuml.rs`, `main.rs`.
 
 Tâches :
 
@@ -145,7 +145,7 @@ Tests unitaires attendus :
 - `to_mindmap` sur un trie de deux numéros produit exactement la sortie ci-dessus. Tant que A n'a pas fini, on peut tester sur un trie construit à la main.
 - Le trie vide produit un mindmap valide avec la racine seule.
 
-C'est terminé quand `cargo run --release -- data/xxx.json` génère un `.puml` qui s'affiche correctement dans PlantUML, que les tests passent et que la PR est relue par A.
+C'est terminé quand `cargo run --release -- data/xxx.json` génère un `.puml` qui s'affiche correctement dans PlantUML, que les tests passent et que le code est relu par A.
 
 À savoir expliquer en soutenance : ce que génère `#[derive(Deserialize)]` (une macro procédurale qui implémente le trait à la compilation), le fonctionnement de `?` avec `#[from]`, et la récursion de l'export.
 
@@ -159,10 +159,13 @@ Tâches à faire à deux :
 - [ ] Relire le code de l'autre : le prof peut interroger n'importe qui sur n'importe quelle partie.
 - [ ] Préparer les 5 minutes de présentation de la soutenance.
 
-Workflow :
+Workflow (en vigueur depuis le 5 novembre 2026) :
 
-1. Une branche par tâche à partir de `main` à jour, par exemple `feat/trie` ou `feat/plantuml`.
-2. Des petits commits au format conventional commits : `feat: add trie insertion`, `test: cover shared prefixes`, `fix: reject non-digit chars`, `docs: add usage to README`, `refactor: extract write_node`.
-3. Avant de pousser : `cargo fmt`, `cargo clippy` et `cargo test`.
-4. Une PR vers `main`, relue et approuvée par l'autre avant le merge. Pas de push direct sur `main`.
-5. Après chaque merge, chacun fait un `git pull` sur `main` puis un rebase de sa branche.
+Le plan initial prévoyait une branche et une PR relue par l'autre pour chaque tâche ; seule l'enum `AppError` a suivi ce circuit (PR #1). Nous avons ensuite choisi de travailler directement sur `main`, plus simple à deux sur un projet de cette taille. Les branches de travail ont été supprimées une fois intégrées.
+
+1. On travaille directement sur `main` : pas de branche de fonctionnalité ni de PR.
+2. Des petits commits au format conventional commits : `feat:`, `fix:`, `test:`, `docs:`, `refactor:`, `chore:`. Par exemple `feat: add Trie::len`, `test: cover prefix numbers and edge cases in trie`.
+3. Avant chaque push, les trois commandes doivent passer : `cargo fmt --check`, `cargo clippy --all-targets` (zéro warning) et `cargo test`.
+4. Avant chaque push : `git pull --rebase`, puisque nous poussons tous les deux sur `main`. On relance les tests si le rebase a ramené des commits, puis `git push`.
+5. L'historique reste linéaire : pas de commit de merge, pas de réécriture de l'historique déjà poussé, pas de force push.
+6. Chacun relit les commits de l'autre après un `git pull` : le prof peut interroger n'importe qui sur n'importe quelle partie.
