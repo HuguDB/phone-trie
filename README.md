@@ -116,6 +116,12 @@ chiffre de son numéro :
 @endmindmap
 ```
 
+Les noms sont échappés pour PlantUML : un retour à la ligne devient une
+espace, et les caractères de mise en forme (`*`, `/`, `-`, `_`, `"`, `[`, `]`,
+`<`, `~`) sont neutralisés, si bien qu'un nom comme `**Bob**` s'affiche tel
+quel au lieu de passer en gras. Dans le `.puml`, `Jean-Pierre` s'écrit donc
+`Jean~-Pierre`.
+
 Avec le serveur PlantUML en Docker :
 
 ```

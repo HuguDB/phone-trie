@@ -33,13 +33,49 @@ fn write_node<T: Display>(digit: char, node: &Node<T>, depth: usize, out: &mut S
     out.push(digit);
     if let Some(value) = node.value() {
         out.push_str(" : ");
-        out.push_str(&value.to_string());
+        out.push_str(&escape_value(&value.to_string()));
     }
     out.push('\n');
 
     for (child_digit, child) in sorted_children(node) {
         write_node(child_digit, child, depth + 1, out);
     }
+}
+
+/// Rend une valeur sûre pour une ligne de MindMap PlantUML.
+///
+/// - Les retours à la ligne (`\r\n`, `\n`, `\r`) et les autres caractères de
+///   contrôle deviennent une espace : une valeur occupe toujours une seule
+///   ligne et ne peut pas créer de faux nœud.
+/// - Les caractères du balisage Creole (`*`, `/`, `"`, `-`, `_`, `[`, `]`)
+///   et `<` (balises HTML, icônes) sont précédés de `~`, le caractère
+///   d'échappement de PlantUML.
+/// - `~` lui-même devient `<U+007E>` : un tilde doublé (`~~`) n'est pas
+///   échappé par PlantUML, qui l'interprète comme du soulignement ondulé.
+///
+/// Vérifié avec le rendu de l'image Docker `plantuml/plantuml`.
+fn escape_value(value: &str) -> String {
+    let mut escaped = String::with_capacity(value.len());
+    let mut chars = value.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '\r' => {
+                // `\r\n` ne donne qu'une seule espace.
+                if chars.peek() == Some(&'\n') {
+                    chars.next();
+                }
+                escaped.push(' ');
+            }
+            c if c.is_control() => escaped.push(' '),
+            '~' => escaped.push_str("<U+007E>"),
+            '*' | '/' | '"' | '-' | '_' | '[' | ']' | '<' => {
+                escaped.push('~');
+                escaped.push(c);
+            }
+            c => escaped.push(c),
+        }
+    }
+    escaped
 }
 
 /// Enfants d'un nœud, triés par chiffre.
@@ -174,6 +210,50 @@ mod tests {
 @endmindmap
 ";
         assert_eq!(forward, expected);
+    }
+
+    #[test]
+    fn escape_keeps_plain_names_unchanged() {
+        assert_eq!(escape_value("Zoé Vincent"), "Zoé Vincent");
+        assert_eq!(escape_value("Alice"), "Alice");
+    }
+
+    #[test]
+    fn escape_replaces_line_breaks_and_tabs_with_spaces() {
+        assert_eq!(escape_value("Alice\nDupont"), "Alice Dupont");
+        assert_eq!(escape_value("Alice\r\nDupont"), "Alice Dupont");
+        assert_eq!(escape_value("Alice\tDupont\r"), "Alice Dupont ");
+    }
+
+    #[test]
+    fn escape_neutralizes_mindmap_and_creole_markup() {
+        assert_eq!(escape_value("*Bob"), "~*Bob");
+        assert_eq!(escape_value("**gras**"), "~*~*gras~*~*");
+        assert_eq!(escape_value("<b>x</b>"), "~<b>x~<~/b>");
+        assert_eq!(escape_value("//italique//"), "~/~/italique~/~/");
+        assert_eq!(escape_value("[[lien]]"), "~[~[lien~]~]");
+        assert_eq!(escape_value("--barré--"), "~-~-barré~-~-");
+        assert_eq!(escape_value("__souligné__"), "~_~_souligné~_~_");
+        assert_eq!(escape_value("\"\"mono\"\""), "~\"~\"mono~\"~\"");
+        assert_eq!(
+            escape_value("~~vague~~"),
+            "<U+007E><U+007E>vague<U+007E><U+007E>"
+        );
+        assert_eq!(escape_value("Jean-Pierre"), "Jean~-Pierre");
+    }
+
+    #[test]
+    fn special_names_stay_on_one_line_of_the_mindmap() {
+        let trie = trie_of(&[("12", "*Bob\nDupont"), ("15", "SAMU")]);
+        let expected = "\
+@startmindmap
+* Racine
+** 1
+*** 2 : ~*Bob Dupont
+*** 5 : SAMU
+@endmindmap
+";
+        assert_eq!(to_mindmap(&trie), expected);
     }
 
     #[test]
