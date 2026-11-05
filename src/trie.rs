@@ -1,6 +1,15 @@
+//! Trie (arbre de préfixes) de numéros de téléphone, codé sans crate.
+//!
+//! Chaque nœud correspond à un chiffre ; les numéros qui partagent un préfixe
+//! partagent les nœuds de ce préfixe. Une valeur (par exemple le nom du
+//! contact) est stockée sur le nœud du dernier chiffre de chaque numéro.
+//! Les enfants sont rangés dans un `Vec<(char, Node<T>)>` : au plus 10
+//! enfants par nœud, donc une recherche linéaire suffit.
+
 use crate::error::AppError;
 
 /// Un nœud du trie : ses enfants et une valeur si un numéro se termine ici.
+#[derive(Debug)]
 pub struct Node<T> {
     children: Vec<(char, Node<T>)>,
     value: Option<T>,
@@ -62,6 +71,7 @@ impl<T> Node<T> {
 }
 
 /// Arbre de préfixes qui associe une valeur à chaque numéro.
+#[derive(Debug)]
 pub struct Trie<T> {
     root: Node<T>,
 }
