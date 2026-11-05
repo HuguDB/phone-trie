@@ -106,6 +106,7 @@ fn invalid_number_prints_warning_and_succeeds() {
     let err = stderr(&output);
     assert!(err.contains("avertissement"), "stderr : {err}");
     assert!(err.contains("06-12-34-56-78"), "stderr : {err}");
+    assert!(err.contains("Eve"), "stderr : {err}");
     assert!(
         dir.path()
             .join("graph")

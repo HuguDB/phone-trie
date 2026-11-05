@@ -38,11 +38,12 @@ lieu de 2000 chiffres.
 Comportement en cas de problème :
 
 - **Numéro invalide** (vide, ou contenant autre chose que des chiffres) : le
-  contact est ignoré, un avertissement est affiché sur la sortie d'erreur, et
-  le MindMap est généré avec les autres numéros.
+  contact est ignoré, un avertissement qui cite son nom est affiché sur la
+  sortie d'erreur, et le MindMap est généré avec les autres numéros.
 
   ```
-  avertissement : numéro ignoré, caractère invalide '-' dans le numéro 06-12-34-56-78
+  avertissement : contact « Eve » ignoré, caractère invalide '-' dans le numéro 06-12-34-56-78
+  0 numéros stockés dans 0 nœuds (0 chiffres sans trie)
   MindMap généré : graph/03_invalid_number.puml
   ```
 

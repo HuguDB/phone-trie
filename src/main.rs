@@ -38,8 +38,11 @@ fn main() -> ExitCode {
 fn run(input: &Path) -> Result<PathBuf, AppError> {
     let contacts = load_contacts(input)?;
     let (trie, rejected) = build_trie(contacts);
-    for err in &rejected {
-        eprintln!("avertissement : numéro ignoré, {err}");
+    for contact in &rejected {
+        eprintln!(
+            "avertissement : contact « {} » ignoré, {}",
+            contact.name, contact.error
+        );
     }
 
     let output = mindmap_path(input, Path::new(GRAPH_DIR));

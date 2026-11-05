@@ -35,24 +35,39 @@ pub fn load_contacts(path: &Path) -> Result<Vec<Contact>, AppError> {
     Ok(contacts)
 }
 
+/// Un contact écarté par [`build_trie`] parce que son numéro est invalide.
+#[derive(Debug)]
+pub struct Rejected {
+    /// Nom du contact écarté.
+    pub name: String,
+    /// Raison du rejet (`AppError::EmptyNumber` ou `AppError::InvalidDigit`,
+    /// qui contient le numéro fautif).
+    pub error: AppError,
+}
+
 /// Construit un trie qui associe chaque numéro au nom du contact.
 ///
 /// Un numéro invalide (vide ou contenant autre chose que des chiffres)
-/// n'arrête pas la construction : le contact est ignoré et l'erreur est
-/// ajoutée à la liste renvoyée, dans l'ordre des contacts. Rien n'est affiché
-/// ici, c'est à l'appelant de signaler les numéros rejetés.
+/// n'arrête pas la construction : le contact est ignoré et ajouté à la liste
+/// des rejets renvoyée, dans l'ordre des contacts. Rien n'est affiché ici,
+/// c'est à l'appelant de signaler les contacts rejetés.
 ///
 /// Il n'y a pas de `Result` : les seules erreurs bloquantes (fichier
 /// introuvable, JSON invalide) sont déjà renvoyées par [`load_contacts`].
-pub fn build_trie(contacts: Vec<Contact>) -> (Trie<String>, Vec<AppError>) {
+pub fn build_trie(contacts: Vec<Contact>) -> (Trie<String>, Vec<Rejected>) {
     let mut trie = Trie::new();
-    let mut errors = Vec::new();
+    let mut rejected = Vec::new();
     for contact in contacts {
-        if let Err(err) = trie.insert(&contact.phone, contact.name) {
-            errors.push(err);
+        // `insert` prend la valeur par move : on garde une copie du nom pour
+        // pouvoir le citer si le numéro est rejeté.
+        if let Err(error) = trie.insert(&contact.phone, contact.name.clone()) {
+            rejected.push(Rejected {
+                name: contact.name,
+                error,
+            });
         }
     }
-    (trie, errors)
+    (trie, rejected)
 }
 
 #[cfg(test)]
@@ -115,9 +130,9 @@ mod tests {
         let contacts = load_contacts(&data_path("02_common_parts.json")).unwrap();
         let phones: Vec<String> = contacts.iter().map(|c| c.phone.clone()).collect();
 
-        let (trie, errors) = build_trie(contacts);
+        let (trie, rejected) = build_trie(contacts);
 
-        assert!(errors.is_empty());
+        assert!(rejected.is_empty());
         assert_eq!(phones.len(), 4);
         for phone in &phones {
             assert!(trie.contains(phone), "{phone} absent du trie");
@@ -128,12 +143,13 @@ mod tests {
     fn invalid_number_file_gives_empty_trie_and_one_error() {
         let contacts = load_contacts(&data_path("03_invalid_number.json")).unwrap();
 
-        let (trie, errors) = build_trie(contacts);
+        let (trie, rejected) = build_trie(contacts);
 
         assert_eq!(trie.node_count(), 0);
-        assert_eq!(errors.len(), 1);
+        assert_eq!(rejected.len(), 1);
+        assert_eq!(rejected[0].name, "Eve");
         assert!(matches!(
-            &errors[0],
+            &rejected[0].error,
             AppError::InvalidDigit('-', n) if n == "06-12-34-56-78"
         ));
     }
@@ -147,13 +163,15 @@ mod tests {
             contact("Vide", ""),
         ];
 
-        let (trie, errors) = build_trie(contacts);
+        let (trie, rejected) = build_trie(contacts);
 
         assert!(trie.contains("0612"));
         assert!(trie.contains("0634"));
         assert!(!trie.contains("06 12"));
-        assert_eq!(errors.len(), 2);
-        assert!(matches!(errors[0], AppError::InvalidDigit(' ', _)));
-        assert!(matches!(errors[1], AppError::EmptyNumber));
+        assert_eq!(rejected.len(), 2);
+        assert_eq!(rejected[0].name, "Eve");
+        assert!(matches!(rejected[0].error, AppError::InvalidDigit(' ', _)));
+        assert_eq!(rejected[1].name, "Vide");
+        assert!(matches!(rejected[1].error, AppError::EmptyNumber));
     }
 }
