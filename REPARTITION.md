@@ -121,7 +121,7 @@ Tâches :
 - [x] `plantuml.rs` : afficher la valeur sur les nœuds où un numéro se termine, par exemple `**** 7 : Alice`.
 - [x] `plantuml.rs` : `pub fn write_mindmap(content: &str, path: &Path) -> Result<(), AppError>`.
 - [x] `main.rs` minimal : prendre le chemin du JSON en argument (`std::env::args_os`, qui ne panique pas sur un chemin non UTF-8), charger, construire, écrire dans `graph/<nom>.puml`. Afficher un avertissement par contact rejeté renvoyé par `build_trie`, avec son nom et la raison (le programme continue), et afficher l'erreur proprement puis s'arrêter si la lecture du fichier ou du JSON échoue.
-- [ ] Vérifier chaque `.puml` généré à la main dans le serveur PlantUML (Docker, `localhost:8080`).
+- [x] Vérifier chaque `.puml` généré dans PlantUML (Docker). Tous les fichiers valides de `data/` passent la validation de syntaxe et se rendent en PNG sans dépasser la limite de 4096 px (`cargo test -- --ignored`, image `plantuml/plantuml`) ; les rendus de `02_common_parts` et `06_large` ont été vérifiés à l'œil.
 
 Exemple de sortie attendue pour `0612` (Alice) et `0634` (Bob) :
 
