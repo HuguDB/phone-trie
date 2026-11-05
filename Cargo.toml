@@ -2,6 +2,8 @@
 name = "phone-trie"
 version = "0.1.0"
 edition = "2024"
+description = "Gestionnaire de numéros de téléphone basé sur un trie, avec export en MindMap PlantUML"
+authors = ["Hugo Debarre", "Célian Philibert"]
 
 [dependencies]
 serde = { version = "1.0.229", features = ["derive"] }
