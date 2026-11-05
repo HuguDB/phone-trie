@@ -18,7 +18,7 @@ pub enum AppError {
     #[error("caractère invalide '{0}' dans le numéro {1}")]
     InvalidDigit(char, String),
     /// Erreur d'entrée/sortie (fichier introuvable, droits insuffisants...).
-    #[error("erreur de lecture : {0}")]
+    #[error("erreur d'entrée/sortie : {0}")]
     Io(#[from] std::io::Error),
     /// Le contenu du fichier n'est pas du JSON valide pour notre format.
     #[error("JSON invalide : {0}")]
@@ -49,7 +49,7 @@ mod tests {
         let io = std::io::Error::new(std::io::ErrorKind::NotFound, "fichier absent");
         let err: AppError = io.into();
         assert!(matches!(err, AppError::Io(_)));
-        assert_eq!(err.to_string(), "erreur de lecture : fichier absent");
+        assert_eq!(err.to_string(), "erreur d'entrée/sortie : fichier absent");
     }
 
     #[test]

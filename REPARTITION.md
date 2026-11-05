@@ -66,7 +66,7 @@ pub enum AppError {
     EmptyNumber,
     #[error("caractère invalide '{0}' dans le numéro {1}")]
     InvalidDigit(char, String),
-    #[error("erreur de lecture : {0}")]
+    #[error("erreur d'entrée/sortie : {0}")]
     Io(#[from] std::io::Error),
     #[error("JSON invalide : {0}")]
     Json(#[from] serde_json::Error),
