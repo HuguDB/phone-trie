@@ -91,7 +91,7 @@ Tâches, dans l'ordre TDD (un test qui échoue, puis le code minimal) :
 - [x] Décider et documenter le comportement en cas de doublon : la valeur est écrasée (documenté sur `insert`, testé).
 - [x] `contains(&self, number)` : parcours en lecture, `false` si un caractère manque ou si le dernier nœud n'a pas de valeur.
 - [x] `root()`, `Node::children()` et `Node::value()` pour que la partie B parcoure l'arbre sans accéder aux champs privés.
-- [ ] Option bonus : `len()` (nombre de numéros) et `node_count()` (nombre de nœuds), utiles pour montrer le gain mémoire en soutenance. `node_count()` est fait (racine exclue) ; `len()` reste à faire.
+- [x] Option bonus : `len()` (nombre de numéros) et `node_count()` (nombre de nœuds, racine exclue), utiles pour montrer le gain mémoire en soutenance. `is_empty()` accompagne `len()` (exigé par clippy).
 - [x] Doc comments `///` sur chaque élément public.
 
 Tests unitaires attendus (`#[cfg(test)] mod tests` dans `trie.rs`) :

@@ -33,6 +33,15 @@ impl<T> Node<T> {
             .sum()
     }
 
+    fn stored_values(&self) -> usize {
+        let own = usize::from(self.value.is_some());
+        own + self
+            .children
+            .iter()
+            .map(|(_, node)| node.stored_values())
+            .sum::<usize>()
+    }
+
     fn child(&self, digit: char) -> Option<&Node<T>> {
         self.children
             .iter()
@@ -91,6 +100,23 @@ impl<T> Trie<T> {
     /// Renvoie le nombre de nœuds, racine exclue.
     pub fn node_count(&self) -> usize {
         self.root.descendants()
+    }
+
+    /// Renvoie le nombre de numéros stockés (un doublon compte une fois).
+    ///
+    /// Parcourt tout le trie : la complexité est proportionnelle au nombre
+    /// de nœuds.
+    pub fn len(&self) -> usize {
+        self.root.stored_values()
+    }
+
+    /// Indique si le trie ne contient aucun numéro.
+    ///
+    /// En temps constant : sans suppression, et comme `insert` valide le
+    /// numéro avant de créer le moindre nœud, la racine n'a des enfants que
+    /// si au moins un numéro a été inséré.
+    pub fn is_empty(&self) -> bool {
+        self.root.children.is_empty()
     }
 
     fn find_node(&self, number: &str) -> Option<&Node<T>> {
@@ -262,6 +288,41 @@ mod tests {
         );
         assert!(!trie.contains("151"));
         assert_eq!(trie.node_count(), 4);
+    }
+
+    #[test]
+    fn empty_trie_has_len_zero() {
+        let trie: Trie<String> = Trie::new();
+        assert_eq!(trie.len(), 0);
+        assert!(trie.is_empty());
+    }
+
+    #[test]
+    fn len_counts_inserted_numbers() {
+        let mut trie = Trie::new();
+        trie.insert("0612", "Alice".to_string()).unwrap();
+        trie.insert("0634", "Bob".to_string()).unwrap();
+        assert_eq!(trie.len(), 2);
+        assert!(!trie.is_empty());
+    }
+
+    #[test]
+    fn len_counts_prefix_numbers_separately() {
+        let mut trie = Trie::new();
+        trie.insert("15", "SAMU".to_string()).unwrap();
+        trie.insert("1515", "Bob".to_string()).unwrap();
+        assert_eq!(trie.len(), 2);
+        assert_eq!(trie.node_count(), 4);
+    }
+
+    #[test]
+    fn len_ignores_duplicates_and_invalid_numbers() {
+        let mut trie = Trie::new();
+        trie.insert("15", "SAMU".to_string()).unwrap();
+        trie.insert("15", "Urgences".to_string()).unwrap();
+        let _ = trie.insert("1a", "Eve".to_string());
+        let _ = trie.insert("", "Vide".to_string());
+        assert_eq!(trie.len(), 1);
     }
 
     #[test]
