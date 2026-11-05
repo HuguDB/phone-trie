@@ -225,6 +225,89 @@ mod tests {
     }
 
     #[test]
+    fn prefix_number_inserted_first_keeps_both_values() {
+        let mut trie = Trie::new();
+        trie.insert("15", "SAMU".to_string()).unwrap();
+        trie.insert("1515", "Bob".to_string()).unwrap();
+
+        assert!(trie.contains("15"));
+        assert!(trie.contains("1515"));
+        assert_eq!(
+            trie.find_node("15").unwrap().value(),
+            Some(&"SAMU".to_string())
+        );
+        assert_eq!(
+            trie.find_node("1515").unwrap().value(),
+            Some(&"Bob".to_string())
+        );
+        assert!(!trie.contains("151"));
+        assert_eq!(trie.node_count(), 4);
+    }
+
+    #[test]
+    fn prefix_number_inserted_last_keeps_both_values() {
+        let mut trie = Trie::new();
+        trie.insert("1515", "Bob".to_string()).unwrap();
+        trie.insert("15", "SAMU".to_string()).unwrap();
+
+        assert!(trie.contains("15"));
+        assert!(trie.contains("1515"));
+        assert_eq!(
+            trie.find_node("15").unwrap().value(),
+            Some(&"SAMU".to_string())
+        );
+        assert_eq!(
+            trie.find_node("1515").unwrap().value(),
+            Some(&"Bob".to_string())
+        );
+        assert!(!trie.contains("151"));
+        assert_eq!(trie.node_count(), 4);
+    }
+
+    #[test]
+    fn empty_trie_has_no_nodes() {
+        let trie: Trie<String> = Trie::new();
+        assert_eq!(trie.node_count(), 0);
+    }
+
+    #[test]
+    fn empty_trie_contains_nothing() {
+        let trie: Trie<String> = Trie::new();
+        assert!(!trie.contains("0612"));
+        assert!(!trie.contains(""));
+    }
+
+    #[test]
+    fn international_prefix_is_rejected() {
+        let mut trie = Trie::new();
+        let result = trie.insert("+33612345678", "Alice".to_string());
+        assert!(matches!(result, Err(AppError::InvalidDigit('+', n)) if n == "+33612345678"));
+    }
+
+    #[test]
+    fn spaces_are_rejected() {
+        let mut trie = Trie::new();
+        let result = trie.insert("06 12 34", "Alice".to_string());
+        assert!(matches!(result, Err(AppError::InvalidDigit(' ', n)) if n == "06 12 34"));
+    }
+
+    #[test]
+    fn non_ascii_characters_are_rejected() {
+        let mut trie = Trie::new();
+        // Lettre accentuée.
+        let accent = trie.insert("06é2", "Alice".to_string());
+        assert!(matches!(accent, Err(AppError::InvalidDigit('é', _))));
+        // Chiffres arabo-indiens : numériques pour Unicode, mais pas ASCII.
+        let arabic = trie.insert("٠٦١٢", "Bob".to_string());
+        assert!(matches!(arabic, Err(AppError::InvalidDigit('٠', _))));
+        // Chiffres pleine chasse.
+        let fullwidth = trie.insert("０６", "Chloé".to_string());
+        assert!(matches!(fullwidth, Err(AppError::InvalidDigit('０', _))));
+
+        assert_eq!(trie.node_count(), 0);
+    }
+
+    #[test]
     fn accessors_expose_structure_in_read_only() {
         let mut trie = Trie::new();
         trie.insert("12", "Alice".to_string()).unwrap();
