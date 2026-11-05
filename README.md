@@ -32,8 +32,8 @@ partage des préfixes :
 MindMap généré : graph/02_common_parts.puml
 ```
 
-Sur `06_large.json`, 200 numéros de 10 chiffres tiennent dans 1084 nœuds au
-lieu de 2000 chiffres.
+Sur `06_large.json`, 50 numéros de 10 chiffres tiennent dans 312 nœuds au
+lieu de 500 chiffres.
 
 Comportement en cas de problème :
 
@@ -82,7 +82,7 @@ chiffres. Le dossier `data/` fournit des jeux de test :
 | `03_invalid_number.json` | 1 numéro avec des tirets, rejeté à l'insertion |
 | `04_malformed.json` | JSON volontairement cassé, rejeté à la lecture |
 | `05_empty.json` | tableau vide |
-| `06_large.json` | 200 contacts sur une dizaine de préfixes |
+| `06_large.json` | 50 contacts sur une dizaine de préfixes |
 
 ## Tests
 
@@ -138,6 +138,14 @@ java -jar plantuml.jar graph/02_common_parts.puml
 ```
 
 Cela génère une image `graph/02_common_parts.png`.
+
+**Gros fichiers :** PlantUML limite par défaut les images PNG à 4096 px de
+côté et coupe silencieusement ce qui dépasse. `06_large.json` a été
+dimensionné pour tenir dans cette limite. Pour un fichier plus volumineux,
+générer du SVG (sans limite de taille), par exemple
+`java -jar plantuml.jar -tsvg graph/<nom>.puml`, ou augmenter la limite avec la
+variable d'environnement `PLANTUML_LIMIT_SIZE`, par exemple
+`docker run -d -p 8080:8080 -e PLANTUML_LIMIT_SIZE=16384 plantuml/plantuml-server:jetty`.
 
 ## Organisation du code
 
