@@ -2,9 +2,10 @@
 //!
 //! `to_mindmap` génère le texte du MindMap, `write_mindmap` l'écrit sur disque.
 
+use std::ffi::OsStr;
 use std::fmt::Display;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::error::AppError;
 use crate::trie::{Node, Trie};
@@ -62,6 +63,16 @@ pub fn write_mindmap(content: &str, path: &Path) -> Result<(), AppError> {
     Ok(())
 }
 
+/// Chemin du `.puml` à générer pour le fichier d'entrée `input` :
+/// `<graph_dir>/<nom de input sans extension>.puml`.
+///
+/// Si `input` n'a pas de nom de fichier (par exemple `..`), le fichier
+/// s'appelle `mindmap.puml`.
+pub fn mindmap_path(input: &Path, graph_dir: &Path) -> PathBuf {
+    let stem = input.file_stem().unwrap_or(OsStr::new("mindmap"));
+    graph_dir.join(stem).with_extension("puml")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -71,6 +82,18 @@ mod tests {
     /// Chemin d'un fichier temporaire propre à chaque test.
     fn temp_path(file: &str) -> PathBuf {
         std::env::temp_dir().join(format!("phone_trie_{file}"))
+    }
+
+    #[test]
+    fn mindmap_path_uses_input_name_without_extension() {
+        let path = mindmap_path(Path::new("data/02_common_parts.json"), Path::new("graph"));
+        assert_eq!(path, Path::new("graph").join("02_common_parts.puml"));
+    }
+
+    #[test]
+    fn mindmap_path_without_file_name_falls_back_to_default() {
+        let path = mindmap_path(Path::new(".."), Path::new("graph"));
+        assert_eq!(path, Path::new("graph").join("mindmap.puml"));
     }
 
     /// Construit un trie de contacts à partir de couples (numéro, nom).
