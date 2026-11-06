@@ -125,6 +125,21 @@ mod tests {
     }
 
     #[test]
+    fn subject_file_loads_five_contacts_with_short_numbers() {
+        let contacts = load_contacts(&data_path("04_common_parts.json")).unwrap();
+        assert_eq!(contacts.len(), 5);
+        assert_eq!(contacts[0].name, "Alice");
+        assert_eq!(contacts[0].phone, "0412578440");
+
+        let (trie, rejected) = build_trie(contacts);
+
+        assert!(rejected.is_empty());
+        assert_eq!(trie.len(), 5);
+        assert!(trie.contains("15"));
+        assert!(trie.contains("112"));
+    }
+
+    #[test]
     fn common_parts_builds_four_numbers() {
         let contacts = load_contacts(&data_path("02_common_parts.json")).unwrap();
         let phones: Vec<String> = contacts.iter().map(|c| c.phone.clone()).collect();

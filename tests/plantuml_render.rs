@@ -135,6 +135,12 @@ fn render_03_invalid_number() {
 
 #[test]
 #[ignore = "nécessite Docker (plantuml/plantuml)"]
+fn render_04_common_parts() {
+    check_render("04_common_parts");
+}
+
+#[test]
+#[ignore = "nécessite Docker (plantuml/plantuml)"]
 fn render_05_empty() {
     check_render("05_empty");
 }

@@ -91,6 +91,30 @@ fn success_prints_statistics() {
 }
 
 #[test]
+fn subject_file_generates_mindmap_with_short_numbers() {
+    let dir = TempDir::new("subject_file");
+
+    let output = run_in(dir.path(), &[&data_path("04_common_parts.json")]);
+
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "stderr : {}",
+        stderr(&output)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("5 numéros stockés dans 28 nœuds (35 chiffres sans trie)"),
+        "stdout : {stdout}"
+    );
+    let puml = dir.path().join("graph").join("04_common_parts.puml");
+    let content = fs::read_to_string(&puml).unwrap();
+    assert!(content.contains("*** 5 : SAMU\n"), "{content}");
+    assert!(content.contains("**** 2 : Urgences\n"), "{content}");
+    assert!(content.contains(" : patate\n"), "{content}");
+}
+
+#[test]
 fn invalid_number_prints_warning_and_succeeds() {
     let dir = TempDir::new("invalid_number");
 
