@@ -38,15 +38,20 @@ code 1. Si un numéro apparaît deux fois, le dernier contact est gardé.
 
 ## Format JSON
 
-Un tableau d'objets avec les champs `name` et `phone`, tous deux obligatoires.
-Les numéros n'ont pas de préfixe international.
+Le format officiel du sujet est un tableau d'objets avec les champs `nb` (le
+numéro) et `name`, tous deux obligatoires. Les numéros n'ont pas de préfixe
+international et peuvent être courts (`15`, `112`).
 
 ```json
 [
-  { "name": "Alice", "phone": "0612345678" },
-  { "name": "Bob", "phone": "0478123456" }
+    { "nb": "0412578440", "name": "Alice" },
+    { "nb": "15", "name": "SAMU" }
 ]
 ```
+
+L'ancien nom de champ `phone` reste accepté à la place de `nb`
+(`{ "name": "Alice", "phone": "0612345678" }`). Un même contact ne doit pas
+avoir les deux champs : c'est une erreur de JSON.
 
 Fichiers de test dans `data/` :
 
