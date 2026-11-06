@@ -8,12 +8,14 @@ use serde::Deserialize;
 use crate::error::AppError;
 use crate::trie::Trie;
 
-/// Contact du fichier JSON : `{ "name": ..., "phone": ... }`.
+/// Contact du fichier JSON : `{ "nb": ..., "name": ... }`. L'ancien nom de
+/// champ `"phone"` est aussi accepté.
 #[derive(Debug, Deserialize)]
 pub struct Contact {
     /// Nom du contact.
     pub name: String,
-    /// Numéro, pas encore validé.
+    /// Numéro, pas encore validé (champ `"nb"` ou `"phone"`).
+    #[serde(alias = "nb")]
     pub phone: String,
 }
 
@@ -96,6 +98,23 @@ mod tests {
     fn empty_array_returns_empty_vec() {
         let contacts = load_contacts(&data_path("05_empty.json")).unwrap();
         assert!(contacts.is_empty());
+    }
+
+    #[test]
+    fn nb_field_is_read_as_phone() {
+        let json = r#"[{ "nb": "0412578440", "name": "Alice" }]"#;
+        let contacts: Vec<Contact> = serde_json::from_str(json).unwrap();
+        assert_eq!(contacts.len(), 1);
+        assert_eq!(contacts[0].name, "Alice");
+        assert_eq!(contacts[0].phone, "0412578440");
+    }
+
+    #[test]
+    fn phone_field_is_still_accepted() {
+        let json = r#"[{ "name": "Bob", "phone": "0478123456" }]"#;
+        let contacts: Vec<Contact> = serde_json::from_str(json).unwrap();
+        assert_eq!(contacts[0].name, "Bob");
+        assert_eq!(contacts[0].phone, "0478123456");
     }
 
     fn contact(name: &str, phone: &str) -> Contact {
