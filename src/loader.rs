@@ -84,7 +84,7 @@ mod tests {
 
     #[test]
     fn malformed_file_returns_json_error() {
-        let result = load_contacts(&data_path("04_malformed.json"));
+        let result = load_contacts(&data_path("07_malformed.json"));
         assert!(matches!(result, Err(AppError::Json(_))));
     }
 

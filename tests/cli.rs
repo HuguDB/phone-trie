@@ -118,11 +118,11 @@ fn invalid_number_prints_warning_and_succeeds() {
 fn malformed_json_exits_with_1() {
     let dir = TempDir::new("malformed");
 
-    let output = run_in(dir.path(), &[&data_path("04_malformed.json")]);
+    let output = run_in(dir.path(), &[&data_path("07_malformed.json")]);
 
     assert_eq!(output.status.code(), Some(1));
     assert!(stderr(&output).contains("JSON invalide"));
-    assert!(!dir.path().join("graph").join("04_malformed.puml").exists());
+    assert!(!dir.path().join("graph").join("07_malformed.puml").exists());
 }
 
 #[test]

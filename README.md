@@ -55,9 +55,9 @@ Fichiers de test dans `data/` :
 | `01_simple.json` | 2 contacts sans préfixe commun |
 | `02_common_parts.json` | 4 contacts avec des préfixes communs |
 | `03_invalid_number.json` | 1 numéro avec des tirets (ignoré) |
-| `04_malformed.json` | JSON cassé (erreur) |
 | `05_empty.json` | tableau vide |
 | `06_large.json` | 50 contacts sur une dizaine de préfixes |
+| `07_malformed.json` | JSON cassé (erreur) |
 
 ## Tests
 
